@@ -7,6 +7,9 @@ import { readState, writeState } from './state.js'
 import { configureDifficulty } from './metrics.js'
 import { cumulative, pointAtFraction } from './geo.js'
 import { createNotes } from './notes.js'
+import { createSync } from './sync.js'
+import { loadSettings, saveSettings, openSettings } from './settings.js'
+import { createClient } from './github.js'
 
 /**
  * 선택 구간이 이 개수 이하일 때만 상세 라인·고도를 받는다.
@@ -235,8 +238,38 @@ async function main() {
     onHover: (id, on) => view.accent(id, on),
   })
 
-  // ── 사진 · 메모 ──────────────────────────────────────
-  const notes = createNotes({ host: sidebar.notesHost, view, courses })
+  // ── 사진 · 메모 + GitHub 동기화 ──────────────────────
+  let syncSettings = loadSettings()
+  const syncCore = createSync(() => syncSettings)
+
+  const syncApi = {
+    run: () => syncCore.run(),
+    onState: (fn) => syncCore.onState(fn),
+    lastSyncedAt: () => syncCore.lastSyncedAt(),
+    lastSyncedAtValue: null,
+    configured: () => Boolean(syncSettings.token && syncSettings.owner && syncSettings.repo),
+    openSettings: () =>
+      openSettings({
+        current: syncSettings,
+        onSave: (next) => {
+          syncSettings = next
+          saveSettings(next)
+        },
+        // 확인은 저장 전 입력값으로 한다 — 틀린 토큰을 저장해두고 확인해봐야 의미가 없다
+        onCheck: (candidate) =>
+          createClient({
+            owner: candidate.owner,
+            repo: candidate.repo,
+            branch: candidate.branch,
+            token: candidate.token,
+          }).check(),
+      }),
+  }
+  syncCore.onState((st) => {
+    if (st.phase === 'done') syncApi.lastSyncedAtValue = st.at
+  })
+
+  const notes = createNotes({ host: sidebar.notesHost, view, courses, sync: syncApi })
 
   // ── 타일 토글 ────────────────────────────────────────
   const buttons = TILE_NAMES.map((name) => {

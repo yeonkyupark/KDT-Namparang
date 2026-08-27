@@ -17,9 +17,10 @@
  */
 
 const DB_NAME = 'namparang'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const NOTES = 'notes'
 const PHOTOS = 'photos'
+const META = 'meta'
 
 let dbPromise = null
 
@@ -35,6 +36,10 @@ function open() {
       }
       if (!db.objectStoreNames.contains(PHOTOS)) {
         db.createObjectStore(PHOTOS, { keyPath: 'id' })
+      }
+      // v2: 동기화 시각 등 잡다한 값
+      if (!db.objectStoreNames.contains(META)) {
+        db.createObjectStore(META, { keyPath: 'key' })
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -97,6 +102,34 @@ export async function deleteNote(id) {
     s.put({ ...rec, deleted: true, thumb: null, updatedAt: new Date().toISOString() }),
   )
   await tx(PHOTOS, 'readwrite', (s) => s.delete(id))
+}
+
+/**
+ * 삭제 표시된 것까지 **전부** 준다.
+ * 동기화는 "삭제됐다"는 사실도 원격에 올려야 하므로 필터링하면 안 된다.
+ */
+export async function allNotesRaw() {
+  return (await tx(NOTES, 'readonly', (s) => s.getAll())) ?? []
+}
+
+/**
+ * 노트를 그대로 넣는다. `updatedAt` 을 건드리지 않는다.
+ *
+ * `saveNote` 는 사용자 편집용이라 항상 `updatedAt` 을 지금으로 바꾼다.
+ * 동기화가 그걸 쓰면 원격에서 내려받은 노트가 매번 "방금 수정됨"이 되어
+ * LWW 병합이 영원히 끝나지 않는다.
+ */
+export function putNoteRaw(note) {
+  return tx(NOTES, 'readwrite', (s) => s.put(note))
+}
+
+export async function setSyncedAt(iso) {
+  await tx(META, 'readwrite', (s) => s.put({ key: 'syncedAt', value: iso }))
+}
+
+export async function getSyncedAt() {
+  const r = await tx(META, 'readonly', (s) => s.get('syncedAt'))
+  return r?.value ?? null
 }
 
 /** 브라우저가 알려주는 사용량 추정. 앱에 표시해 한도를 눈으로 보게 한다. */

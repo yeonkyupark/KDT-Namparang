@@ -90,7 +90,7 @@
 
 **성능 예산**: 랜딩 첫 로딩 JS ≤ 80KB(gzip), 초기 데이터 ≤ 300KB, 코스 상세는 lazy fetch.
 
-**단계 6a 실측**: JS **55.8KB** gzip (Leaflet 42 + 자체 코드 14) · CSS **9.6KB** ·
+**단계 6b 실측**: JS **61.6KB** gzip (Leaflet 42 + 자체 코드 20) · CSS **10.2KB** ·
 `exifr` **14.6KB** (사진 등록 시에만 지연 로딩) · `courses.json` 전송 **37.5KB** gzip.
 랜딩 예산(80KB) 안이다. 차트 라이브러리 의존성 0.
 
@@ -444,7 +444,7 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 | ~~4. 구간 선택 + 정보~~ | ~~사이드바, 시작/종료 select, 강조 렌더, 요약, URL 동기화, `isAlt` 합계 제외, 모바일 바텀시트~~ | ✅ **완료** — JS 48.0KB gzip / CSS 8.3KB | ~~1.5일~~ |
 | ~~5. 고도 프로필~~ | ~~인라인 SVG 차트, 지도 커서 동기화, "DEM 추정값" 각주~~ | ✅ **완료** — JS 50.2KB gzip / CSS 8.5KB | ~~0.5일~~ |
 | ~~6a. 사진/메모 (로컬)~~ | ~~IndexedDB, EXIF, 리사이즈, 핀/모달, 지도클릭 fallback~~ | ✅ **완료** — JS 55.8KB gzip + exifr 14.6KB(지연 로딩) | ~~2일~~ |
-| **6b. GitHub 동기화** | `github.js`/`token.js`, PAT 입력 UI, Contents API 커밋, raw 읽기, 동기화 큐, 용량 표시 | 기기 간 동기화 | 1일 |
+| **6b. GitHub 동기화** | ~~`github.js`/`settings.js`/`sync.js`, PAT UI, Contents API, raw 읽기~~ | ⏳ **구현 완료 · 인증 경로 미검증** — 사진 리포와 PAT 가 있어야 실제 push/pull 확인 가능 | 1일 |
 | **7. 백업 + 마감** | ZIP export/import, 모바일 반응형, 다크모드, CSP, Lighthouse, README | v1.0 릴리스 | 1일 |
 
 남은 작업량 약 **9.5일** (Supabase 폐기로 0.5일 단축). 각 단계 끝에 커밋 + 배포하여 **항상 동작하는 상태**를 유지한다.
@@ -493,6 +493,21 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 - `nam-27` 고도 이상 (평균절대오차 38.4m) 원인 미확정
 - 모바일 세로 화면에서 트레일이 작게 보인다. 가로로 긴 경로를 전부 담아야 하니
   fitBounds로는 불가피하다 — 랜딩 목적에는 맞다.
+
+**단계 6b 구현 메모**
+- **계획을 하나 바꿨다.** 메모를 노트당 파일 1개(`data/notes/{id}.json`)로 두려 했는데
+  단일 파일(`public/data/notes.json`)로 바꿨다. 노트당 파일이면 목록을 얻으려고
+  디렉터리 조회(인증 필요·API 한도) + 파일마다 요청이 필요해 450개면 451번이다.
+  단일 사용자라 충돌이 드물고, 충돌하면 409 가 오니 다시 읽어 병합·재시도하면 정확하다.
+- **쓰기 경로에서 sha 와 내용을 반드시 함께 읽어야 한다.** sha 는 API(즉시 최신),
+  내용은 raw(최대 5분 캐시)로 따로 읽으면 방금 다른 기기가 올린 변경을 못 본 채
+  최신 sha 로 덮어써서 **되돌린다.** `getFileJson` 이 Contents API 하나로 둘을 준다.
+- 동기화가 노트를 쓸 때는 `putNoteRaw`(updatedAt 보존)를 쓴다. `saveNote`(항상 지금으로 갱신)를
+  쓰면 내려받은 노트가 매번 "방금 수정됨"이 되어 LWW 병합이 수렴하지 않는다.
+- 원격에서 내려온 노트의 썸네일 Blob 은 받지 않는다. 원격 raw URL 을 `<img src>` 에
+  그대로 넣어 브라우저 캐시에 맡긴다 (450개를 미리 받으면 9MB다).
+- 한글 JSON 은 `btoa` 로 바로 못 넘긴다(Latin1 전용). `TextEncoder` 로 UTF-8 인코딩 후 base64.
+- 사진은 `putBlobIfAbsent` — 한 번 올리면 바뀌지 않으므로 이미 있으면 건너뛴다.
 
 **단계 6a 구현 메모**
 - `exifr` 기본 진입점은 full 빌드(25.5KB gzip)다. `lite`(14.6KB)에 gps·촬영일시·HEIC 가

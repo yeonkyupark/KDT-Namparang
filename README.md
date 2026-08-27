@@ -59,6 +59,25 @@ GPX 노선은 Daum 카페 **["도보여행(섬&산) 좋은사람들"](https://ca
 고도는 원본 GPX에 사실상 없어서(92개 중 82개가 전부 0) **SRTM 30m DEM으로 산출한 추정값**이다.
 소요시간도 계산값이다 — GPX의 `<time>`은 편집 시각이라 쓰지 않는다.
 
+## GitHub 동기화 설정 (선택)
+
+사진·메모는 기본적으로 **이 브라우저에만** 저장됩니다. 기기 간에 옮기려면 GitHub을 저장소로 씁니다.
+
+1. **사진 리포지토리를 만든다** — 예: `KDT-Namparang-photos`
+   소스 리포를 가볍게 유지하려고 사진은 따로 둡니다. 커밋된 사진은 삭제해도
+   git 히스토리에 남으므로, 소스 리포에 섞으면 `git clone` 이 계속 무거워집니다.
+2. **fine-grained PAT 를 만든다** — [토큰 만들기](https://github.com/settings/personal-access-tokens/new)
+   - Repository access: 위 리포 2개만 선택
+   - Permissions → Repository permissions → **Contents: Read and write**
+   - 만료 90일 권장
+3. 앱 사이드바 기록 섹션의 **⚙** 를 눌러 계정·리포·토큰을 넣고 **연결 확인** → **저장**
+4. **동기화** 버튼을 누른다
+
+저장 위치
+- 메모: 메인 리포 `public/data/notes.json` (한 파일, sha 낙관적 락 + 재시도)
+- 사진: 사진 리포 `{연도}/{id}.jpg`, `{연도}/{id}_t.jpg`
+- 읽기는 `raw.githubusercontent.com` 으로 갑니다 — 즉시 반영되고 API 한도에 걸리지 않습니다
+
 ## 보안 주의
 
 사진·메모 쓰기에는 **본인의 fine-grained PAT**가 필요하고, 이 토큰은

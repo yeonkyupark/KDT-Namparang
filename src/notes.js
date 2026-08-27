@@ -20,6 +20,20 @@ const el = (tag, cls, text) => {
   return n
 }
 
+/**
+ * 이미지 소스를 고른다. 로컬 Blob 이 있으면 그걸, 없으면 원격 raw URL 을 쓴다.
+ *
+ * 다른 기기에서 동기화로 내려온 노트는 Blob 이 없다. 썸네일 450개를 미리
+ * 받으면 9MB이므로, 원격 URL 을 그대로 <img src> 에 넣어 브라우저 캐시에 맡긴다.
+ */
+function imageSrc(blob, url) {
+  if (blob) {
+    const objectUrl = URL.createObjectURL(blob)
+    return { src: objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) }
+  }
+  return { src: url || null, revoke: () => {} }
+}
+
 const fmtDate = (iso) => {
   if (!iso) return ''
   const d = new Date(iso)
@@ -34,7 +48,7 @@ const fmtDate = (iso) => {
  * @param {object} deps.view       createMap 이 돌려준 지도 뷰
  * @param {Array}  deps.courses    courses.json
  */
-export function createNotes({ host, view, courses }) {
+export function createNotes({ host, view, courses, sync }) {
   const mainCourses = courses.filter((c) => !c.isAlt)
 
   /** @type {Map<string, object>} */
@@ -59,7 +73,60 @@ export function createNotes({ host, view, courses }) {
   const list = el('ul', 'notes-list')
   const usageLine = el('div', 'notes-usage')
 
-  host.append(head, addBtn, input, list, usageLine)
+  // ── 동기화 줄 ────────────────────────────────────────
+  const syncRow = el('div', 'sync-row')
+  const syncBtn = el('button', 'sync-btn', '동기화')
+  syncBtn.type = 'button'
+  const gearBtn = el('button', 'icon-btn sync-gear', '⚙')
+  gearBtn.type = 'button'
+  gearBtn.title = 'GitHub 동기화 설정'
+  gearBtn.setAttribute('aria-label', gearBtn.title)
+  const syncMsg = el('span', 'sync-msg')
+  syncRow.append(syncBtn, gearBtn, syncMsg)
+
+  host.append(head, addBtn, input, list, syncRow, usageLine)
+
+  const PHASE_TEXT = {
+    start: '동기화 시작…',
+    photos: '사진 업로드 중…',
+    notes: '메모 반영 중…',
+    pull: '원격 변경 확인 중…',
+  }
+
+  function setSyncMsg(text, kind = '') {
+    syncMsg.textContent = text
+    syncMsg.className = `sync-msg${kind ? ` is-${kind}` : ''}`
+  }
+
+  if (sync) {
+    gearBtn.onclick = () => sync.openSettings()
+    syncBtn.onclick = async () => {
+      try {
+        await sync.run()
+      } catch {
+        // 상태 메시지는 onState 에서 이미 표시한다
+      }
+    }
+    sync.onState(async (st) => {
+      if (st.phase === 'done') {
+        syncBtn.disabled = false
+        const bits = []
+        if (st.pushed) bits.push(`올림 ${st.pushed}`)
+        if (st.pulled) bits.push(`내림 ${st.pulled}`)
+        if (st.photos?.uploaded) bits.push(`사진 ${st.photos.uploaded}장`)
+        setSyncMsg(bits.length ? `완료 · ${bits.join(' · ')}` : '변경 없음', 'ok')
+        await load() // 내려받은 노트를 화면에 반영
+      } else if (st.phase === 'error') {
+        syncBtn.disabled = false
+        setSyncMsg(st.message, 'bad')
+      } else {
+        syncBtn.disabled = true
+        setSyncMsg(PHASE_TEXT[st.phase] ?? '…')
+      }
+    })
+  } else {
+    syncRow.hidden = true
+  }
 
   addBtn.onclick = () => input.click()
   input.onchange = async () => {
@@ -267,6 +334,7 @@ export function createNotes({ host, view, courses }) {
         view.setNotePin(rec, { onClick: openViewer })
         renderList()
         refreshUsage()
+        hintPending()
         cleanup()
       } catch (e) {
         saveBtn.disabled = false
@@ -299,10 +367,10 @@ export function createNotes({ host, view, courses }) {
 
     const back = el('div', 'modal-back')
     const box = el('div', 'modal view-modal')
-    let objectUrl = null
+    let revokeCurrent = null
 
     const cleanup = () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      revokeCurrent?.()
       back.remove()
       document.removeEventListener('keydown', onKey)
     }
@@ -373,14 +441,15 @@ export function createNotes({ host, view, courses }) {
       body.append(el('div', 'view-meta', bits.join(' · ')))
       if (cur.memo) body.append(el('p', 'view-memo', cur.memo)) // textContent — HTML 로 렌더하지 않는다
 
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-      objectUrl = null
+      revokeCurrent?.()
+      revokeCurrent = null
       img.removeAttribute('src')
       const blob = (await getPhoto(cur.id)) ?? cur.thumb
-      if (blob) {
-        objectUrl = URL.createObjectURL(blob)
-        img.src = objectUrl
+      const picked = imageSrc(blob, cur.photo?.fullUrl ?? cur.photo?.thumbUrl)
+      if (picked.src) {
+        img.src = picked.src
         img.alt = cur.title || '사진'
+        revokeCurrent = picked.revoke
       }
 
       editBtn.onclick = () => {
@@ -399,6 +468,7 @@ export function createNotes({ host, view, courses }) {
         view.removeNotePin(cur.id)
         renderList()
         refreshUsage()
+        hintPending()
         cleanup()
       }
 
@@ -428,12 +498,13 @@ export function createNotes({ host, view, courses }) {
 
     for (const n of ordered) {
       const li = el('li', 'note-item')
-      if (n.thumb) {
-        const url = URL.createObjectURL(n.thumb)
-        listUrls.add(url)
+      const picked = imageSrc(n.thumb, n.photo?.thumbUrl)
+      if (picked.src) {
+        if (n.thumb) listUrls.add(picked.src)
         const img = el('img', 'note-thumb')
-        img.src = url
+        img.src = picked.src
         img.alt = ''
+        img.loading = 'lazy'
         li.append(img)
       } else {
         li.append(el('span', 'note-thumb is-empty', '📷'))
@@ -450,6 +521,13 @@ export function createNotes({ host, view, courses }) {
       li.onclick = () => openViewer(n)
       list.append(li)
     }
+  }
+
+  /** 동기화가 설정돼 있으면 "올릴 것이 있다"는 걸 알려준다. */
+  function hintPending() {
+    if (!sync?.configured()) return
+    const last = sync.lastSyncedAtValue
+    setSyncMsg(last ? '변경됨 — 동기화 필요' : '아직 동기화하지 않음')
   }
 
   async function refreshUsage() {
@@ -478,6 +556,17 @@ export function createNotes({ host, view, courses }) {
     for (const n of notes.values()) view.setNotePin(n, { onClick: openViewer })
     renderList()
     refreshUsage()
+
+    if (sync && !syncMsg.textContent) {
+      const at = await sync.lastSyncedAt()
+      setSyncMsg(
+        !sync.configured()
+          ? '동기화 미설정 — ⚙ 를 눌러 설정하세요'
+          : at
+            ? `마지막 동기화 ${fmtDate(at)}`
+            : '아직 동기화하지 않음',
+      )
+    }
   }
 
   return { load, get count() { return notes.size } }

@@ -810,3 +810,65 @@ body {
   .pick-banner { flex-wrap: wrap; gap: .35rem .6rem; }
   .view-modal, .form-modal { width: 100%; }
 }
+
+/* ── GitHub 동기화 ───────────────────────────────────── */
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .5rem;
+  padding-top: .5rem;
+  border-top: 1px solid var(--line);
+}
+
+.sync-btn {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: .8rem;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .26rem .6rem;
+  cursor: pointer;
+}
+.sync-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.sync-btn:disabled { opacity: .55; cursor: default; }
+
+.sync-gear { width: 1.6rem; height: 1.6rem; font-size: .8rem; }
+
+.sync-msg {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg-dim);
+  font-size: .7rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.sync-msg.is-ok { color: var(--accent); }
+.sync-msg.is-bad { color: #cf4436; }
+
+.settings-modal .form-row { margin-bottom: .7rem; }
+.form-hint { color: var(--fg-dim); font-size: .7rem; line-height: 1.4; }
+
+.settings-guide {
+  margin: .3rem 0 .2rem;
+  padding: .6rem .7rem;
+  background: var(--hover);
+  border-radius: 8px;
+  font-size: .76rem;
+}
+.settings-guide b { display: block; margin-bottom: .3rem; font-size: .78rem; }
+.settings-guide ol { margin: 0 0 .45rem; padding-left: 1.1rem; color: var(--fg-dim); line-height: 1.55; }
+.settings-guide a { color: var(--accent); font-size: .76rem; }
+
+.settings-status {
+  min-height: 1.1rem;
+  margin-top: .5rem;
+  color: var(--fg-dim);
+  font-size: .76rem;
+  line-height: 1.4;
+}
+.settings-status.is-ok { color: var(--accent); }
+.settings-status.is-bad { color: #cf4436; }
