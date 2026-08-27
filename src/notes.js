@@ -175,7 +175,10 @@ export function createNotes({ host, view, courses, sync }) {
     let latlng = exif.latlng
     let source = 'exif'
     if (!latlng) {
-      latlng = await askLocation(file.name)
+      // 좌표는 없지만 주소가 있는 경우가 있다(갤럭시 등 일부 기기는 좌표 대신
+      // 주소 문자열을 XMP/IPTC 에 넣는다). 주소를 보여주면 어디를 클릭해야
+      // 하는지 알 수 있으므로 배너에 그대로 띄운다.
+      latlng = await askLocation(file.name, exif)
       source = 'map'
       if (!latlng) return // 사용자가 취소
     }
@@ -192,23 +195,85 @@ export function createNotes({ host, view, courses, sync }) {
         memo: '',
         rating: 0,
         locationSource: source,
+        address: exif.address || '',
       },
       image,
       near,
+      exif,
     })
   }
 
-  /** 지도를 클릭해 위치를 받는다. */
-  function askLocation(fileName) {
-    const banner = el('div', 'pick-banner')
-    banner.append(
-      el('b', null, '지도를 클릭해 위치를 지정하세요'),
-      el(
-        'span',
-        'pick-sub',
-        `${fileName} — 사진에 GPS 정보가 없습니다 (메신저·SNS를 거치면 지워집니다)`,
-      ),
+  /**
+   * 주소 문자열을 우리 코스 데이터와 맞춰 본다.
+   *
+   * 외부 지오코딩 서비스를 쓰지 않는다. 우리에겐 이미 17개 시·군과 90개 코스의
+   * 시작·종료 지점명이 있다. "거제시 학동고개" 같은 주소면 거제시 구간으로
+   * 지도를 옮겨주는 것만으로 클릭할 자리를 크게 좁힐 수 있다.
+   *
+   * @returns {{ids: Set<string>, label: string}|null}
+   */
+  function matchAddress(address) {
+    if (!address) return null
+    const text = address.replace(/\s+/g, '')
+    const regions = [...new Set(mainCourses.map((c) => c.region).filter(Boolean))]
+
+    // 1) 지점명 토큰으로 좁힌다.
+    //    지점명 전체(`거제시 동부면 학동리 학동고개`)를 그대로 찾으면 안 맞는다 —
+    //    사진 주소는 보통 `학동고개 거제시` 처럼 순서와 구성이 다르다.
+    //    그래서 토큰 단위로 보고, 시·군 이름은 너무 넓어서 제외한다.
+    const specific = (place) =>
+      place
+        .split(/\s+/)
+        .filter((t) => t.length >= 3 && !regions.includes(t))
+    const byPlace = mainCourses.filter((c) =>
+      [c.start, c.end].filter(Boolean).some((p) => specific(p).some((t) => text.includes(t))),
     )
+    if (byPlace.length) {
+      const ids = new Set(byPlace.map((c) => c.id))
+      return {
+        ids,
+        label:
+          byPlace.length === 1
+            ? byPlace[0].name
+            : `${byPlace[0].name}~${byPlace[byPlace.length - 1].name}`,
+      }
+    }
+
+    // 2) 시·군 단위
+    const hit = regions.find((r) => text.includes(r.replace(/\s+/g, '')))
+    if (hit) {
+      const ids = mainCourses.filter((c) => c.region === hit).map((c) => c.id)
+      return { ids: new Set(ids), label: `${hit} 구간 ${ids.length}개` }
+    }
+    return null
+  }
+
+  /** 지도를 클릭해 위치를 받는다. */
+  function askLocation(fileName, exif = {}) {
+    const banner = el('div', 'pick-banner')
+    banner.append(el('b', null, '지도를 클릭해 위치를 지정하세요'))
+
+    if (exif.address) {
+      // 주소가 있으면 그게 가장 쓸모있는 단서다. 파일명보다 먼저 크게 보여준다.
+      banner.append(el('span', 'pick-addr', `📍 ${exif.address}`))
+      banner.append(el('span', 'pick-sub', `${fileName} — 좌표는 없고 주소만 기록돼 있습니다`))
+    } else {
+      banner.append(
+        el(
+          'span',
+          'pick-sub',
+          `${fileName} — 사진에 위치 정보가 없습니다 (메신저·SNS를 거치거나 촬영 시 위치 태그가 꺼져 있으면 지워집니다)`,
+        ),
+      )
+    }
+    // 주소로 지역을 알아낼 수 있으면 지도를 먼저 그쪽으로 옮긴다.
+    // 전국 축척에서 클릭하게 두면 정밀도가 km 단위로 떨어진다.
+    const matched = matchAddress(exif.address)
+    if (matched) {
+      view.fitIds(matched.ids)
+      banner.append(el('span', 'pick-hint', `지도 이동: ${matched.label}`))
+    }
+
     const cancel = el('button', 'pick-cancel', '취소')
     cancel.type = 'button'
     banner.append(cancel)
@@ -224,7 +289,7 @@ export function createNotes({ host, view, courses, sync }) {
   }
 
   // ── 입력 폼 ──────────────────────────────────────────
-  function openForm({ draft, image, near, existingThumbUrl }) {
+  function openForm({ draft, image, near, existingThumbUrl, exif }) {
     const back = el('div', 'modal-back')
     const box = el('div', 'modal form-modal')
 
@@ -275,7 +340,47 @@ export function createNotes({ host, view, courses, sync }) {
     infoBits.push(draft.locationSource === 'exif' ? '위치: 사진 EXIF' : '위치: 지도 지정')
     if (near) infoBits.push(`코스에서 ${Math.round(near.distM)}m`)
     meta.append(el('div', 'form-info', infoBits.join(' · ')))
+    if (draft.address) meta.append(el('div', 'form-addr', `📍 사진에 기록된 주소: ${draft.address}`))
     box.append(meta)
+
+    // 진단: "주소는 보이는데 좌표가 없다" 같은 제보를 확인할 수 있게
+    // 실제로 어떤 메타데이터가 들어 있었는지 펼쳐 볼 수 있게 한다.
+    if (exif?.diag?.keys?.length) {
+      const det = document.createElement('details')
+      det.className = 'form-diag'
+      det.append(el('summary', null, `사진 메타데이터 ${exif.diag.keys.length}개 항목`))
+      const body = el('div', 'diag-body')
+      body.append(
+        el(
+          'div',
+          null,
+          `좌표 관련 키: ${exif.diag.hasGpsKeys.length ? exif.diag.hasGpsKeys.join(', ') : '없음'}`,
+        ),
+      )
+      if (exif.addressSource) body.append(el('div', null, `주소 출처: ${exif.addressSource}`))
+      const pre = el('pre', 'diag-pre', exif.diag.textValues.join('\n') || '(문자열 값 없음)')
+      body.append(pre)
+      const copy = el('button', 'btn diag-copy', '메타데이터 복사')
+      copy.type = 'button'
+      copy.onclick = async () => {
+        const text = [
+          `keys: ${exif.diag.keys.join(', ')}`,
+          `gpsKeys: ${exif.diag.hasGpsKeys.join(', ') || '없음'}`,
+          `addressSource: ${exif.addressSource || '없음'}`,
+          '',
+          ...exif.diag.textValues,
+        ].join('\n')
+        try {
+          await navigator.clipboard.writeText(text)
+          copy.textContent = '복사됨'
+        } catch {
+          copy.textContent = '복사 실패'
+        }
+      }
+      body.append(copy)
+      det.append(body)
+      box.append(det)
+    }
 
     const titleIn = document.createElement('input')
     titleIn.type = 'text'
@@ -326,6 +431,7 @@ export function createNotes({ host, view, courses, sync }) {
             title: titleIn.value.trim(),
             memo: memoIn.value.trim(),
             rating,
+            address: draft.address ?? '',
             thumb: image ? image.thumb : notes.get(draft.id)?.thumb ?? null,
           },
           image ? image.full : null,
@@ -439,6 +545,7 @@ export function createNotes({ host, view, courses, sync }) {
       else if (cur.createdAt) bits.push(`등록 ${fmtDate(cur.createdAt)}`)
       if (cur.rating) bits.push('★'.repeat(cur.rating))
       body.append(el('div', 'view-meta', bits.join(' · ')))
+      if (cur.address) body.append(el('div', 'view-addr', `📍 ${cur.address}`))
       if (cur.memo) body.append(el('p', 'view-memo', cur.memo)) // textContent — HTML 로 렌더하지 않는다
 
       revokeCurrent?.()

@@ -42,6 +42,7 @@ function toRemote(note) {
     memo: note.memo ?? '',
     rating: note.rating ?? 0,
     locationSource: note.locationSource ?? '',
+    address: note.address ?? '',
     deleted: Boolean(note.deleted),
     photo: note.photo ?? null, // { full, thumb } — 사진 리포 안의 경로
   }

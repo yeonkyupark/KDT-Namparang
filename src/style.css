@@ -872,3 +872,53 @@ body {
 }
 .settings-status.is-ok { color: var(--accent); }
 .settings-status.is-bad { color: #cf4436; }
+
+/* ── 사진에 기록된 주소 ──────────────────────────────── */
+
+.pick-addr {
+  width: 100%;
+  color: var(--accent);
+  font-size: .84rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.form-addr {
+  margin-top: .35rem;
+  color: var(--accent);
+  font-size: .78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.view-addr {
+  margin-top: .25rem;
+  color: var(--accent);
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+
+/* 메타데이터 진단 */
+
+.form-diag { margin: .2rem 0 .6rem; font-size: .76rem; }
+.form-diag summary { color: var(--fg-dim); cursor: pointer; }
+.diag-body { margin-top: .4rem; color: var(--fg-dim); line-height: 1.5; }
+.diag-pre {
+  max-height: 9rem;
+  overflow: auto;
+  margin: .35rem 0;
+  padding: .45rem .5rem;
+  background: var(--hover);
+  border-radius: 6px;
+  font-size: .7rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.diag-copy { font-size: .76rem; padding: .22rem .55rem; }
+
+.pick-hint {
+  width: 100%;
+  color: var(--fg-dim);
+  font-size: .74rem;
+}
