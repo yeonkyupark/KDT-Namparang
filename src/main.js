@@ -13,8 +13,8 @@ const STATS = [
 const STEPS = [
   { s: 'done', t: '데이터 확보', d: 'GPX 92개 수집 · 전수 검증' },
   { s: 'done', t: '출처 표기', d: 'data/SOURCE.md' },
-  { s: 'now',  t: '배포 파이프라인', d: 'Vite + GitHub Actions + Pages' },
-  { s: 'todo', t: '고도 확보', d: 'SRTM DEM 조회 · 이중 대조 검증' },
+  { s: 'done', t: '배포 파이프라인', d: 'Vite + GitHub Actions + Pages' },
+  { s: 'now',  t: '고도 확보', d: 'SRTM DEM 조회 · 이중 대조 검증' },
   { s: 'todo', t: '전처리', d: 'GPX → courses.json' },
   { s: 'todo', t: '랜딩 지도', d: 'Leaflet · 92개 코스 표시' },
   { s: 'todo', t: '구간 선택', d: '시작~종료 코스 · 요약 정보' },

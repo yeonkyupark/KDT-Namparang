@@ -384,7 +384,7 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 | 단계 | 내용 | 산출물 | 예상 |
 |---|---|---|---|
 | ~~1. 데이터 확보~~ | ~~GPX 92개 수집·검증, 외부 참고자료 조사~~ | ✅ **완료** | ~~1일~~ |
-| **0. 준비** | `data/SOURCE.md` 작성, git init, Vite 스캐폴딩, GitHub Public 리포 2개, Pages+Actions **먼저** 뚫기 | "Hello"가 실제 URL에 뜬다 | 0.5일 |
+| ~~0. 준비~~ | ~~`data/SOURCE.md`, git init, Vite 스캐폴딩, 리포 생성, Pages+Actions~~ | ✅ **완료** — https://yeonkyupark.github.io/KDT-Namparang/ | ~~0.5일~~ |
 | **2a. 고도 확보** | `build-ele.mjs` — opentopodata 조회, 캐시 커밋. nam-23~27 실측 + gpsroute 38,070m **이중 대조**로 임계값 캘리브레이션 | `data/cache/ele/*.json` | 1일 |
 | **2b. 전처리** | `build-data.mjs` — 파싱·단순화·거리/고도/시간/난이도. `trk name` 파싱 + `courses.meta.csv` 보정(22개) | `courses.json`, `course/{id}.json` | 1일 |
 | **3. 랜딩 지도** | Leaflet, 92개 전체 표시(임시노선 점선), 타일 토글, 시작점 마커 | 랜딩 완성 | 1일 |
@@ -418,8 +418,15 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 
 ---
 
-## 9. 다음 액션
+## 9. 현재 상태 / 다음 액션
 
-1. `data/SOURCE.md` 작성 — Daum 카페 원저자·수집일·이용조건 + gpsroute 참고자료 출처 (**저작자 표기를 먼저 처리한다**)
-2. GitHub Public 리포 2개(`namparang`, `namparang-photos`) 생성 + Vite 스캐폴딩 + Pages 배포 파이프라인 (단계 0)
-3. `build-ele.mjs`로 고도 확보 — 여기가 남은 최대 불확실성 (단계 2a)
+**리포**: https://github.com/yeonkyupark/KDT-Namparang
+**배포**: https://yeonkyupark.github.io/KDT-Namparang/ (push → Actions → Pages 자동)
+
+단계 0 완료. 다음은:
+
+1. **`build-ele.mjs`로 고도 확보 (단계 2a)** — 남은 최대 불확실성.
+   상세 해상도로 단순화한 ~37,000점을 opentopodata로 조회 → `data/cache/ele/` 커밋 →
+   nam-23~27 실측값 + gpsroute 38,070m로 이중 대조해 ±3m 임계값 캘리브레이션
+2. `build-data.mjs` 전처리 (단계 2b) — `trk name` 파싱 70개 자동 + `courses.meta.csv` 보정 22개
+3. `namparang-photos` 리포는 단계 6b에서 생성 (지금 불필요)
