@@ -1,8 +1,17 @@
 import './style.css'
-import { loadIndex, loadMeta } from './data.mjs'
-import { createMap, DIFFICULTY_COLOR, formatDuration } from './map.js'
+import { loadIndex, loadMeta, loadCourse } from './data.mjs'
+import { createMap, TILE_NAMES, formatDuration } from './map.js'
+import { createSidebar } from './sidebar.js'
+import { readState, writeState } from './state.js'
+import { configureDifficulty } from './metrics.js'
 
-const TILES = ['기본', '지형', '위성']
+/**
+ * 선택 구간이 이 개수 이하일 때만 상세 라인을 받아 선을 고해상도로 교체한다.
+ *
+ * 상세 파일은 코스당 8KB다. 90개 전 구간을 고르면 745KB인데, 그 줌에서는
+ * 오버뷰(코스당 43점)와 눈으로 구분되지 않는다. 확대해서 볼 만한 구간에서만 받는다.
+ */
+const DETAIL_LIMIT = 30
 
 const el = (tag, cls, text) => {
   const n = document.createElement(tag)
@@ -17,6 +26,7 @@ function renderShell() {
   app.className = 'shell'
 
   const header = el('header', 'topbar')
+
   const brand = el('div', 'brand')
   brand.append(el('b', null, '남파랑길'))
   brand.append(el('span', 'brand-sub', '부산 오륙도 → 해남 땅끝탑'))
@@ -29,61 +39,19 @@ function renderShell() {
   tools.append(tileGroup)
   header.append(tools)
 
+  const stage = el('div', 'stage')
   const mapEl = el('div', 'map')
   mapEl.id = 'map'
+  stage.append(mapEl)
 
-  app.append(header, mapEl)
-  return { header, tileGroup, mapEl, tools }
+  app.append(header, stage)
+  return { header, tileGroup, tools, stage, mapEl }
 }
 
-function renderLegend(container, counts) {
-  const legend = el('div', 'legend')
-  legend.append(el('span', 'legend-title', '난이도'))
-  for (const [label, color] of Object.entries(DIFFICULTY_COLOR)) {
-    const item = el('span', 'legend-item')
-    const sw = el('i', 'sw')
-    sw.style.background = color
-    item.append(sw, el('span', null, `${label} ${counts[label] ?? 0}`))
-    legend.append(item)
-  }
-  const alt = el('span', 'legend-item')
-  alt.append(el('i', 'sw sw-alt'), el('span', null, '임시노선 2'))
-  legend.append(alt)
-  container.append(legend)
-}
+function renderInfoCard(stage, course) {
+  document.querySelector('.infocard')?.remove()
 
-function renderSummary(container, meta, courses) {
-  const box = el('div', 'summary')
-  const rows = [
-    ['코스', `${meta.mainCourseCount}개`],
-    ['총 거리', `${meta.totalKm.toLocaleString()} km`],
-    ['누적 상승', `${meta.totalAscentM.toLocaleString()} m`],
-    // 총합에서 분 단위는 무의미하다. 시간으로 끊는다.
-    [
-      '예상 소요',
-      `약 ${Math.round(
-        courses.filter((c) => !c.isAlt).reduce((s, c) => s + c.durationMin, 0) / 60,
-      ).toLocaleString()}시간`,
-    ],
-  ]
-  for (const [k, v] of rows) {
-    const r = el('div', 'summary-row')
-    r.append(el('span', 'k', k), el('span', 'v', v))
-    box.append(r)
-  }
-  const note = el('div', 'summary-note')
-  note.textContent = '고도는 SRTM DEM 추정값, 소요시간은 계산값입니다.'
-  box.append(note)
-  container.append(box)
-}
-
-function renderInfoCard(course) {
-  let card = document.querySelector('.infocard')
-  if (!card) {
-    card = el('div', 'infocard')
-    document.querySelector('.shell').append(card)
-  }
-  card.textContent = ''
+  const card = el('div', 'infocard')
 
   const head = el('div', 'ic-head')
   head.append(el('b', null, course.name))
@@ -97,7 +65,6 @@ function renderInfoCard(course) {
   card.append(head)
 
   if (course.alias) card.append(el('div', 'ic-alias', course.alias))
-
   card.append(
     el(
       'div',
@@ -107,23 +74,25 @@ function renderInfoCard(course) {
   )
 
   const stats = el('div', 'ic-stats')
-  const pairs = [
+  for (const [k, v] of [
     ['거리', `${course.distanceKm} km`],
     ['예상 소요', formatDuration(course.durationMin)],
     ['누적 상승', `${course.ascentM.toLocaleString()} m`],
     ['누적 하강', `${course.descentM.toLocaleString()} m`],
     ['고도', `${course.eleMin}–${course.eleMax} m`],
     ['난이도', course.difficulty],
-  ]
-  for (const [k, v] of pairs) {
+  ]) {
     const s = el('div', 'ic-stat')
     s.append(el('span', 'k', k), el('span', 'v', v))
     stats.append(s)
   }
   card.append(stats)
 
+  if (course.isAlt) card.append(el('div', 'ic-note', '임시·우회 노선 — 구간 합계에서 제외됩니다.'))
   if (course.note) card.append(el('div', 'ic-note', course.note))
   card.append(el('div', 'ic-foot', '고도는 DEM 추정값 · 소요시간은 계산값'))
+
+  stage.append(card)
 }
 
 function renderError(message) {
@@ -147,52 +116,99 @@ async function main() {
     return
   }
 
-  const { tileGroup, mapEl, tools } = renderShell()
+  configureDifficulty(meta.difficulty?.breaks)
+
+  const { tileGroup, tools, stage, mapEl } = renderShell()
 
   /**
    * fitBounds가 피해야 하는 화면 영역.
-   * 넓은 화면은 오버레이가 좌상단, 좁은 화면은 하단에 있다.
-   * 오버레이 높이는 내용에 따라 달라지므로 실제로 측정한다.
+   * 넓은 화면은 사이드바가 왼쪽(그리드로 분리되어 있어 지도를 가리지 않음),
+   * 좁은 화면은 하단 시트가 지도를 덮는다.
    */
   const getInsets = () => {
-    const w = window.innerWidth
-    const overlayH = document.querySelector('.overlay')?.offsetHeight ?? 0
-    if (w < 641) return { left: 12, top: 12, right: 12, bottom: overlayH + 44 }
-    return { left: Math.min(230, Math.round(w * 0.18)), top: 20, right: 24, bottom: 40 }
+    if (window.innerWidth >= 861) return { left: 24, top: 20, right: 24, bottom: 40 }
+    const sheetH = document.querySelector('.panel')?.offsetHeight ?? 0
+    return { left: 12, top: 12, right: 12, bottom: sheetH + 20 }
   }
 
-  const view = createMap(mapEl, courses, { onSelect: renderInfoCard, getInsets })
+  const view = createMap(mapEl, courses, {
+    getInsets,
+    onSelect: (c) => renderInfoCard(stage, c),
+  })
 
-  // 타일 토글
-  let active = TILES[0]
-  const buttons = TILES.map((name) => {
-    const b = el('button', 'seg-btn' + (name === active ? ' is-on' : ''), name)
+  const maxSeq = Math.max(...courses.filter((c) => !c.isAlt).map((c) => c.seq))
+  const opts = { maxSeq, tiles: TILE_NAMES }
+  const initial = readState(opts)
+  let layer = initial.layer
+
+  // ── 구간 적용 ────────────────────────────────────────
+  let applyToken = 0
+
+  async function applyRange({ from, to }, { fit = true } = {}) {
+    const ids = new Set(courses.filter((c) => c.seq >= from && c.seq <= to).map((c) => c.id))
+    view.setSelection(ids.size === courses.length ? null : ids)
+    if (fit) view.fitIds(ids)
+
+    writeState({ from, to, layer }, opts)
+
+    // 상세 라인은 뒤늦게 도착해도 되므로 await 하지 않고 흘려보낸다.
+    const token = ++applyToken
+    const targets = [...ids]
+    if (targets.length > DETAIL_LIMIT) return
+
+    for (const id of targets) {
+      loadCourse(id)
+        .then((d) => {
+          if (token === applyToken) view.upgradeToDetail(id, d.line)
+        })
+        .catch(() => {}) // 상세는 있으면 좋은 것이다. 실패해도 오버뷰로 동작한다.
+    }
+  }
+
+  const sidebar = createSidebar(stage, courses, {
+    onRangeChange: (r) => applyRange(r),
+    onPick: (c) => {
+      renderInfoCard(stage, c)
+      view.focus(c.id)
+      sidebar.collapse()
+    },
+    onHover: (id, on) => view.accent(id, on),
+  })
+
+  // ── 타일 토글 ────────────────────────────────────────
+  const buttons = TILE_NAMES.map((name) => {
+    const b = el('button', 'seg-btn' + (name === layer ? ' is-on' : ''), name)
     b.type = 'button'
     b.onclick = () => {
-      if (name === active) return
-      active = name
+      if (name === layer) return
+      layer = name
       view.setTile(name)
       for (const other of buttons) other.classList.toggle('is-on', other.textContent === name)
+      writeState({ ...sidebar.getRange(), layer }, opts)
     }
     tileGroup.append(b)
     return b
   })
 
-  const fit = el('button', 'ghost-btn', '전체보기')
-  fit.type = 'button'
-  fit.onclick = () => view.fitAll()
-  tools.append(fit)
+  const fitBtn = el('button', 'ghost-btn', '전체보기')
+  fitBtn.type = 'button'
+  fitBtn.onclick = () => view.fitAll()
+  tools.append(fitBtn)
 
-  const counts = {}
-  for (const c of courses) if (!c.isAlt) counts[c.difficulty] = (counts[c.difficulty] ?? 0) + 1
+  // ── 초기 상태 반영 ───────────────────────────────────
+  view.setTile(layer)
+  sidebar.setRange(initial.from, initial.to, { notify: false })
+  await applyRange({ from: initial.from, to: initial.to })
 
-  const overlay = el('div', 'overlay')
-  renderSummary(overlay, meta, courses)
-  renderLegend(overlay, counts)
-  document.querySelector('.shell').append(overlay)
-
-  // 오버레이를 붙인 뒤에 맞춘다 — getInsets가 그 높이를 재기 때문이다.
-  view.fitAll({ animate: false })
+  // 브라우저 뒤로/앞으로
+  window.addEventListener('popstate', () => {
+    const s = readState(opts)
+    layer = s.layer
+    view.setTile(layer)
+    for (const b of buttons) b.classList.toggle('is-on', b.textContent === layer)
+    sidebar.setRange(s.from, s.to, { notify: false })
+    applyRange({ from: s.from, to: s.to })
+  })
 }
 
 main()

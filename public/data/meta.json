@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-27T01:29:15.970Z",
+ "generatedAt": "2026-08-27T01:56:13.207Z",
  "courseCount": 92,
  "mainCourseCount": 90,
  "totalKm": 1463.9,
@@ -12,7 +12,26 @@
   "thresholdM": 3
  },
  "duration": {
-  "note": "네이스미스 규칙 계산값. GPX의 <time>은 편집 시각이라 쓰지 않는다."
+  "note": "네이스미스 규칙 계산값. GPX의 <time>은 편집 시각이라 쓰지 않는다.",
+  "walkSpeedKmh": 4,
+  "ascentSpeedMh": 600
+ },
+ "difficulty": {
+  "formula": "거리km + 상승m/100",
+  "breaks": [
+   {
+    "max": 16,
+    "label": "쉬움"
+   },
+   {
+    "max": 22,
+    "label": "보통"
+   },
+   {
+    "max": null,
+    "label": "어려움"
+   }
+  ]
  },
  "source": {
   "gpx": "Daum 카페 \"도보여행(섬&산) 좋은사람들\" — https://cafe.daum.net/mtsingles/LN1X/1631",

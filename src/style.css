@@ -1,24 +1,27 @@
 :root {
   --bg: #ffffff;
   --panel: #ffffff;
-  --panel-blur: rgba(255, 255, 255, 0.92);
+  --panel-blur: rgba(255, 255, 255, 0.93);
   --fg: #1a1d21;
   --fg-dim: #5a626b;
   --line: #dfe3e8;
+  --hover: #f2f5f7;
   --accent: #0d6b5f;
   --accent-soft: #e6f2f0;
   --shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
   --radius: 10px;
+  --panel-w: 19rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171a;
     --panel: #1c2126;
-    --panel-blur: rgba(28, 33, 38, 0.93);
+    --panel-blur: rgba(28, 33, 38, 0.94);
     --fg: #e8ebee;
     --fg-dim: #9aa4ae;
     --line: #2b3238;
+    --hover: #232a30;
     --accent: #4dd0b8;
     --accent-soft: #16302c;
     --shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
@@ -27,11 +30,7 @@
 
 * { box-sizing: border-box; }
 
-html, body, #app {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-}
+html, body, #app { margin: 0; padding: 0; height: 100%; }
 
 body {
   background: var(--bg);
@@ -50,14 +49,22 @@ body {
   display: grid;
   grid-template-rows: auto 1fr;
   height: 100%;
-  position: relative;
+  min-height: 0;
 }
 
-.map {
-  width: 100%;
-  height: 100%;
-  background: var(--bg);
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--panel-w) 1fr;
+  min-height: 0;
 }
+
+/* 배치를 명시한다. 사이드바는 지도보다 나중에 DOM에 붙으므로
+   자동 배치에 맡기면 지도가 1열(사이드바 자리)로 들어가 좌우가 뒤집힌다. */
+.stage > .panel { grid-area: 1 / 1; }
+.stage > .map { grid-area: 1 / 2; }
+
+.map { width: 100%; height: 100%; background: var(--bg); }
 
 /* ── 상단바 ──────────────────────────────────────────── */
 
@@ -69,7 +76,7 @@ body {
   padding: .55rem .9rem;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  z-index: 500;
+  z-index: 600;
 }
 
 .brand { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
@@ -84,15 +91,9 @@ body {
 
 .tools { display: flex; align-items: center; gap: .5rem; flex: 0 0 auto; }
 
-.seg {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 
-.seg-btn,
-.ghost-btn {
+.seg-btn, .ghost-btn, .reset-btn {
   font: inherit;
   font-size: .82rem;
   color: var(--fg-dim);
@@ -101,72 +102,142 @@ body {
   padding: .34rem .68rem;
   cursor: pointer;
 }
-
 .seg-btn + .seg-btn { border-left: 1px solid var(--line); }
 .seg-btn:hover, .ghost-btn:hover { color: var(--fg); }
 .seg-btn.is-on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.ghost-btn { border: 1px solid var(--line); border-radius: 8px; }
 
-.ghost-btn {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
+/* ── 사이드바 ────────────────────────────────────────── */
 
-/* ── 지도 위 오버레이 ────────────────────────────────── */
-
-.overlay {
-  position: absolute;
-  left: .75rem;
-  top: 3.4rem;
-  z-index: 450;
+.panel {
   display: flex;
   flex-direction: column;
-  gap: .5rem;
-  max-width: min(15rem, calc(100% - 1.5rem));
-  pointer-events: none;
+  min-height: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  z-index: 500;
 }
 
-.summary, .legend {
-  background: var(--panel-blur);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: .6rem .7rem;
-  pointer-events: auto;
-}
+.sheet-handle { display: none; }
 
-.summary-row {
+.panel-body {
   display: flex;
-  justify-content: space-between;
-  gap: .75rem;
-  font-size: .85rem;
-  padding: .1rem 0;
-}
-.summary-row .k { color: var(--fg-dim); }
-.summary-row .v { font-variant-numeric: tabular-nums; font-weight: 600; }
-
-.summary-note {
-  margin-top: .4rem;
-  padding-top: .4rem;
-  border-top: 1px solid var(--line);
-  color: var(--fg-dim);
-  font-size: .72rem;
-  line-height: 1.35;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.legend { display: flex; flex-wrap: wrap; gap: .3rem .7rem; align-items: center; }
-.legend-title {
-  width: 100%;
+/* 코스 선택 */
+
+.picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem;
+  padding: .7rem .8rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.field { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.field-label {
   color: var(--fg-dim);
   font-size: .72rem;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: .05em;
 }
-.legend-item { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; }
-.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
-.sw-alt {
-  background: repeating-linear-gradient(90deg, #8b8f98 0 4px, transparent 4px 7px);
+.field select {
+  font: inherit;
+  font-size: .86rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .32rem .4rem;
+  width: 100%;
 }
+
+.reset-btn {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .3rem;
+}
+.reset-btn:disabled { opacity: .45; cursor: default; }
+.reset-btn:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+
+/* 구간 요약 */
+
+.sum { padding: .6rem .8rem; border-bottom: 1px solid var(--line); }
+
+.sum-row {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  font-size: .86rem;
+  padding: .09rem 0;
+}
+.sum-row .k { color: var(--fg-dim); }
+.sum-row .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.sum-note {
+  margin-top: .4rem;
+  color: var(--fg-dim);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+/* 코스 목록 */
+
+.list-wrap { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+
+.list-head {
+  padding: .5rem .8rem .35rem;
+  color: var(--fg-dim);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.course-list {
+  margin: 0;
+  padding: 0 0 .5rem;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.course-item {
+  display: grid;
+  grid-template-columns: 8px 1.6rem 1fr auto;
+  align-items: center;
+  gap: .45rem;
+  padding: .38rem .8rem;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.course-item:hover { background: var(--hover); border-left-color: var(--accent); }
+.course-item.is-alt { opacity: .72; }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.ci-num {
+  font-variant-numeric: tabular-nums;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--fg-dim);
+  text-align: right;
+}
+.ci-mid { display: flex; flex-direction: column; min-width: 0; }
+.ci-name { font-size: .85rem; }
+.ci-route {
+  color: var(--fg-dim);
+  font-size: .72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ci-right { display: flex; flex-direction: column; align-items: flex-end; }
+.ci-km { font-size: .8rem; font-variant-numeric: tabular-nums; }
+.ci-up { color: var(--fg-dim); font-size: .7rem; font-variant-numeric: tabular-nums; }
 
 /* ── 코스 정보 카드 ──────────────────────────────────── */
 
@@ -174,7 +245,7 @@ body {
   position: absolute;
   right: .75rem;
   bottom: 1.6rem;
-  z-index: 460;
+  z-index: 550;
   width: min(20rem, calc(100% - 1.5rem));
   background: var(--panel-blur);
   backdrop-filter: blur(6px);
@@ -209,21 +280,12 @@ body {
 .ic-alias { color: var(--accent); font-size: .8rem; margin-top: .15rem; }
 .ic-route { color: var(--fg-dim); font-size: .82rem; margin: .3rem 0 .55rem; line-height: 1.4; }
 
-.ic-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: .3rem .8rem;
-}
+.ic-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .8rem; }
 .ic-stat { display: flex; justify-content: space-between; gap: .5rem; font-size: .84rem; }
 .ic-stat .k { color: var(--fg-dim); }
 .ic-stat .v { font-variant-numeric: tabular-nums; font-weight: 600; }
 
-.ic-note {
-  margin-top: .5rem;
-  color: var(--fg-dim);
-  font-size: .76rem;
-}
-
+.ic-note { margin-top: .5rem; color: var(--fg-dim); font-size: .76rem; }
 .ic-foot {
   margin-top: .5rem;
   padding-top: .45rem;
@@ -232,7 +294,9 @@ body {
   font-size: .7rem;
 }
 
-/* ── Leaflet 툴팁 ────────────────────────────────────── */
+/* ── Leaflet ─────────────────────────────────────────── */
+
+.leaflet-container { font: inherit; background: var(--bg); }
 
 .leaflet-tooltip {
   background: var(--panel);
@@ -253,10 +317,6 @@ body {
 .tip-stats { font-variant-numeric: tabular-nums; margin-top: .2rem; }
 .tip-note { color: var(--fg-dim); font-size: .74rem; margin-top: .2rem; }
 
-.leaflet-container {
-  font: inherit;
-  background: var(--bg);
-}
 .leaflet-control-attribution {
   background: var(--panel-blur) !important;
   color: var(--fg-dim) !important;
@@ -271,39 +331,73 @@ body {
 .errorbox p { color: var(--fg-dim); }
 .errorbox .hint { font-size: .85rem; }
 
-/* ── 모바일 ──────────────────────────────────────────── */
+/* ── 좁은 화면: 사이드바 → 하단 시트 ────────────────── */
 
-@media (max-width: 640px) {
+@media (max-width: 860px) {
   .brand-sub { display: none; }
   .seg-btn, .ghost-btn { padding: .3rem .5rem; font-size: .78rem; }
 
-  /* 오버레이를 하단으로 내린다. 상단에 두면 지도를 덮고 줌 컨트롤과 겹친다. */
-  .overlay {
-    top: auto;
-    bottom: 1.9rem;
-    left: .5rem;
-    right: .5rem;
-    max-width: none;
+  /* 시트가 지도 위에 떠 있으므로 지도는 전폭을 쓴다 */
+  .stage { grid-template-columns: 1fr; }
+  .stage > .map { grid-area: 1 / 1; }
+
+  .panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -2px 14px rgba(0, 0, 0, .18);
+    max-height: 82%;
+    transition: max-height .22s ease;
+    /* Leaflet 컨트롤 컨테이너는 z-index 1000 으로 시트 위에 그려진다.
+       attribution 은 표기 의무가 있으니 가리지 않고, 대신 시트 내용이
+       그 띠에 묻히지 않도록 아래 여백을 준다. */
+    padding-bottom: 1.15rem;
   }
 
-  /* 한 줄 flex로 두면 좁은 폭에서 값이 잘린다. 2열 그리드로 고정. */
-  .summary {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: .1rem .9rem;
-  }
-  .summary-row { font-size: .8rem; }
-  .summary-note { grid-column: 1 / -1; }
+  /* 축척 바는 시트와 겹친다. 좁은 화면에서는 없어도 된다. */
+  .leaflet-control-scale { display: none; }
 
-  .legend { gap: .25rem .6rem; }
-  .legend-item { font-size: .75rem; }
-
-  /* 정보 카드는 오버레이를 덮는다 — 코스를 고른 동안은 그게 주 관심사다. */
-  .infocard {
-    right: .5rem;
-    left: .5rem;
-    width: auto;
-    bottom: 1.9rem;
-    z-index: 470;
+  .sheet-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    width: 100%;
+    padding: .45rem;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    font: inherit;
   }
+  .grip {
+    width: 2.2rem;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--line);
+    display: block;
+  }
+  .sheet-label { color: var(--fg-dim); font-size: .74rem; }
+
+  /* 3단: 요약만 / 선택+요약 / 목록까지
+     is-half 에 고정 높이를 주면 내용이 잘린다. 목록만 감추고 높이는 내용에 맡긴다. */
+  .panel-body { transition: max-height .22s ease; }
+  .panel.is-peek .panel-body { max-height: 0; overflow: hidden; }
+  .panel.is-half .panel-body { max-height: 26rem; }
+  .panel.is-full .panel-body { max-height: 70vh; }
+
+  .panel.is-peek .list-wrap,
+  .panel.is-half .list-wrap { display: none; }
+
+  .picker { grid-template-columns: 1fr 1fr auto; align-items: end; }
+  .reset-btn { grid-column: auto; padding: .32rem .6rem; }
+
+  .sum { display: grid; grid-template-columns: 1fr 1fr; gap: 0 .9rem; }
+  .sum-note { grid-column: 1 / -1; }
+
+  .infocard { right: .5rem; left: .5rem; width: auto; bottom: auto; top: .6rem; }
 }

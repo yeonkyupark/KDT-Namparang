@@ -10,8 +10,19 @@ export const DIFFICULTY_COLOR = {
 
 const ALT_COLOR = '#8b8f98'
 
+/**
+ * 선택된 코스 / 선택 밖 코스의 선 두께·투명도.
+ *
+ * OFF를 너무 낮추면(0.28 이하) 밝은 OSM 타일에서 나머지 구간이 사실상 사라져
+ * 전체 경로 안에서 지금 구간이 어디인지 감이 안 온다. 맥락은 남긴다.
+ */
+const ON = { weight: 4, opacity: 1, casing: 8, casingOpacity: 0.8 }
+const OFF = { weight: 2, opacity: 0.45, casing: 5, casingOpacity: 0.3 }
+
 const GPX_ATTR =
   'GPX <a href="https://cafe.daum.net/mtsingles/LN1X/1631" target="_blank" rel="noopener">도보여행(섬&산) 좋은사람들</a>'
+
+export const TILE_NAMES = ['기본', '지형', '위성']
 
 function tileLayers() {
   return {
@@ -26,10 +37,7 @@ function tileLayers() {
     }),
     위성: L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      {
-        maxZoom: 19,
-        attribution: `Esri, Maxar, Earthstar Geographics · ${GPX_ATTR}`,
-      },
+      { maxZoom: 19, attribution: `Esri, Maxar, Earthstar Geographics · ${GPX_ATTR}` },
     ),
   }
 }
@@ -56,7 +64,7 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
   const lineGroup = L.layerGroup().addTo(map)
   const markerGroup = L.layerGroup().addTo(map)
 
-  /** @type {Map<string, {casing: L.Polyline, line: L.Polyline, marker: L.CircleMarker, course: object}>} */
+  /** @type {Map<string, object>} id -> {casing, line, marker, course, on, detail} */
   const rendered = new Map()
 
   for (const c of courses) {
@@ -66,8 +74,8 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
     const casing = L.polyline(c.overview, {
       color: '#ffffff',
-      weight: 6,
-      opacity: 0.75,
+      weight: ON.casing,
+      opacity: ON.casingOpacity,
       interactive: false,
       lineJoin: 'round',
       lineCap: 'round',
@@ -75,9 +83,9 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
     const line = L.polyline(c.overview, {
       color,
-      weight: 3,
-      opacity: 0.95,
-      dashArray: c.isAlt ? '6 6' : null,
+      weight: ON.weight,
+      opacity: ON.opacity,
+      dashArray: c.isAlt ? '7 6' : null,
       lineJoin: 'round',
       lineCap: 'round',
     }).addTo(lineGroup)
@@ -90,6 +98,8 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
       fillOpacity: 1,
     }).addTo(markerGroup)
 
+    const rec = { casing, line, marker, course: c, on: true, detail: null }
+
     const label = tooltipHtml(c)
     line.bindTooltip(label, { sticky: true })
     marker.bindTooltip(label)
@@ -99,49 +109,103 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     marker.on('click', select)
 
     // 선이 얇아서 hover 판정이 어렵다. 굵게 잡아준다.
-    line.on('mouseover', () => line.setStyle({ weight: 6 }))
-    line.on('mouseout', () => line.setStyle({ weight: 3 }))
+    // 선택 상태에 따라 기준 두께가 달라지므로 rec.on 을 보고 되돌린다.
+    line.on('mouseover', () => line.setStyle({ weight: (rec.on ? ON : OFF).weight + 3 }))
+    line.on('mouseout', () => line.setStyle({ weight: (rec.on ? ON : OFF).weight }))
 
-    rendered.set(c.id, { casing, line, marker, course: c })
+    rendered.set(c.id, rec)
   }
 
   // 시작점 마커 90개를 전국 줌에서 원래 크기로 두면 코스 선을 덮어버려
   // 경로가 점선처럼 보인다. 줌에 따라 크기를 줄인다.
   function syncMarkerSize() {
     const z = map.getZoom()
-    const style =
+    const base =
       z < 9 ? { radius: 2, weight: 0 } : z < 12 ? { radius: 3.5, weight: 1 } : { radius: 5, weight: 1.5 }
-    for (const { marker } of rendered.values()) marker.setStyle(style).setRadius(style.radius)
+    for (const rec of rendered.values()) {
+      const dim = rec.on ? 1 : 0.3
+      rec.marker
+        .setStyle({ ...base, color: '#ffffff', opacity: base.weight ? dim : 0, fillOpacity: dim })
+        .setRadius(base.radius)
+    }
   }
   map.on('zoomend', syncMarkerSize)
 
+  function boundsOf(ids) {
+    const b = L.latLngBounds([])
+    for (const [id, rec] of rendered) {
+      if (ids && !ids.has(id)) continue
+      b.extend(rec.line.getBounds())
+    }
+    return b
+  }
+
+  function fitBounds(b, options) {
+    if (!b.isValid()) return
+    const ins = getInsets?.() ?? {}
+    map.fitBounds(b, {
+      paddingTopLeft: [ins.left ?? 24, ins.top ?? 20],
+      paddingBottomRight: [ins.right ?? 24, ins.bottom ?? 40],
+      ...options,
+    })
+    syncMarkerSize()
+  }
+
   return {
-    syncMarkerSize,
     map,
     layers,
     rendered,
-    markerGroup,
+    syncMarkerSize,
+
+    /** 전체 코스가 보이도록 맞춘다. */
+    fitAll(options) {
+      fitBounds(boundsOf(null), options)
+    },
+
+    /** 주어진 코스들만 보이도록 맞춘다. */
+    fitIds(ids, options) {
+      fitBounds(boundsOf(ids), options)
+    },
 
     /**
-     * 전체 코스가 보이도록 맞춘다.
-     *
-     * 오버레이(요약·범례) 뒤로 경로가 숨지 않게 그만큼 여백을 준다.
-     * 오버레이 위치가 화면 크기에 따라 바뀌므로(넓으면 좌상단, 좁으면 하단)
-     * 실제 여백은 `getInsets`가 알려준다. 고정값을 쓰면 좁은 화면에서
-     * 지도가 과하게 축소된다.
+     * 선택 구간을 강조하고 나머지를 흐리게 한다.
+     * `ids`가 null이면 전부 강조(= 흐린 코스 없음).
      */
-    fitAll(options) {
-      const bounds = L.latLngBounds([])
-      for (const { line } of rendered.values()) bounds.extend(line.getBounds())
-      if (!bounds.isValid()) return
-
-      const ins = getInsets?.() ?? {}
-      map.fitBounds(bounds, {
-        paddingTopLeft: [ins.left ?? 24, ins.top ?? 20],
-        paddingBottomRight: [ins.right ?? 24, ins.bottom ?? 40],
-        ...options,
-      })
+    setSelection(ids) {
+      for (const [id, rec] of rendered) {
+        const on = !ids || ids.has(id)
+        rec.on = on
+        const s = on ? ON : OFF
+        rec.line.setStyle({ weight: s.weight, opacity: s.opacity })
+        rec.casing.setStyle({ weight: s.casing, opacity: s.casingOpacity })
+        // 강조된 선이 흐린 선 위에 오게 한다
+        if (on) rec.line.bringToFront()
+      }
       syncMarkerSize()
+    },
+
+    /** 오버뷰 라인을 고해상도 상세 라인으로 교체한다. 한 번 바꾸면 되돌리지 않는다. */
+    upgradeToDetail(id, latlngs) {
+      const rec = rendered.get(id)
+      if (!rec || rec.detail || !latlngs?.length) return
+      rec.detail = latlngs
+      rec.line.setLatLngs(latlngs)
+      rec.casing.setLatLngs(latlngs)
+    },
+
+    /** 코스 하나를 화면에 담는다. */
+    focus(id, options) {
+      const rec = rendered.get(id)
+      if (rec) fitBounds(rec.line.getBounds(), options)
+    },
+
+    /** 목록에서 hover 했을 때 지도에서 해당 코스를 두드러지게 한다. */
+    accent(id, on) {
+      const rec = rendered.get(id)
+      if (!rec) return
+      const base = (rec.on ? ON : OFF).weight
+      rec.line.setStyle({ weight: on ? base + 3 : base })
+      if (on) rec.line.bringToFront()
     },
 
     setTile(name) {
@@ -154,23 +218,22 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 }
 
 function esc(s) {
-  return String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch])
+  return String(s ?? '').replace(
+    /[&<>"]/g,
+    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch],
+  )
 }
 
 function tooltipHtml(c) {
   const route = c.start && c.end ? `${esc(c.start)} → ${esc(c.end)}` : '지점명 정보 없음'
-  const bits = [
-    `${c.distanceKm} km`,
-    `↑ ${c.ascentM.toLocaleString()} m`,
-    formatDuration(c.durationMin),
-  ]
+  const bits = [`${c.distanceKm} km`, `↑ ${c.ascentM.toLocaleString()} m`, formatDuration(c.durationMin)]
   return (
     `<div class="tip"><b>${esc(c.name)}</b>` +
     (c.region ? ` <span class="tip-region">${esc(c.region)}</span>` : '') +
     (c.alias ? `<div class="tip-alias">${esc(c.alias)}</div>` : '') +
     `<div class="tip-route">${route}</div>` +
     `<div class="tip-stats">${bits.join(' · ')}</div>` +
-    (c.isAlt ? '<div class="tip-note">임시/우회 노선</div>' : '') +
+    (c.isAlt ? '<div class="tip-note">임시/우회 노선 · 합계 제외</div>' : '') +
     '</div>'
   )
 }

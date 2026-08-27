@@ -166,6 +166,8 @@ function main() {
     alias: c.alias || '',
     note: c.note || '',
     distanceKm: c.km,
+    // 구간 합계용. distanceKm(반올림값)을 더하면 오차가 쌓인다.
+    distanceM: Math.round(c.lengthM),
     durationMin: c.durationMin,
     ascentM: c.ascentM,
     descentM: c.descentM,
@@ -209,7 +211,14 @@ function main() {
           smoothWindow: ELE_SMOOTH_WINDOW,
           thresholdM: ELE_THRESHOLD_M,
         },
-        duration: { note: '네이스미스 규칙 계산값. GPX의 <time>은 편집 시각이라 쓰지 않는다.' },
+        duration: {
+          note: '네이스미스 규칙 계산값. GPX의 <time>은 편집 시각이라 쓰지 않는다.',
+          walkSpeedKmh: WALK_SPEED_KMH,
+          ascentSpeedMh: ASCENT_SPEED_MH,
+        },
+        // 난이도 경계를 클라이언트에 중복 정의하지 않도록 실어 보낸다.
+        // JSON에는 Infinity가 없어서 마지막 max 는 null 로 직렬화된다.
+        difficulty: { formula: '거리km + 상승m/100', breaks: DIFFICULTY_BREAKS },
         source: {
           gpx: 'Daum 카페 "도보여행(섬&산) 좋은사람들" — https://cafe.daum.net/mtsingles/LN1X/1631',
           detail: 'data/SOURCE.md',
