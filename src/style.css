@@ -964,3 +964,33 @@ body {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
+
+/* ── 시점·종점 주소와 교통편 ─────────────────────────── */
+
+.ic-access {
+  margin-top: .55rem;
+  padding-top: .5rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+
+.ic-acc-head { display: flex; align-items: baseline; gap: .35rem; }
+.ic-acc-tag {
+  flex: 0 0 auto;
+  color: var(--fg-dim);
+  font-size: .68rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 .25rem;
+}
+.ic-acc-place { font-size: .82rem; font-weight: 600; overflow-wrap: anywhere; }
+.ic-acc-addr { color: var(--fg-dim); font-size: .74rem; margin-top: .1rem; overflow-wrap: anywhere; }
+.ic-acc-transit {
+  color: var(--accent);
+  font-size: .74rem;
+  margin-top: .12rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}

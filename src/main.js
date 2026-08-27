@@ -109,6 +109,28 @@ function renderInfoCard(host, course) {
   }
   card.append(stats)
 
+  // 주소·교통편이 있으면 보여준다. 들머리까지 어떻게 가는지가
+  // 실제로 계획할 때 가장 필요한 정보다.
+  const access = [
+    ['시점', course.start, course.startAddr, course.startAccess],
+    ['종점', course.end, course.endAddr, course.endAccess],
+  ].filter(([, , addr, acc]) => addr || acc)
+
+  if (access.length) {
+    const box = el('div', 'ic-access')
+    for (const [label, place, addr, acc] of access) {
+      const row = el('div', 'ic-acc-row')
+      const head = el('div', 'ic-acc-head')
+      head.append(el('span', 'ic-acc-tag', label))
+      if (place) head.append(el('span', 'ic-acc-place', place))
+      row.append(head)
+      if (addr) row.append(el('div', 'ic-acc-addr', addr))
+      if (acc) row.append(el('div', 'ic-acc-transit', `🚌 ${acc}`))
+      box.append(row)
+    }
+    card.append(box)
+  }
+
   if (course.isAlt) card.append(el('div', 'ic-note', '임시·우회 노선 — 구간 합계에서 제외됩니다.'))
   if (course.note) card.append(el('div', 'ic-note', course.note))
   card.append(el('div', 'ic-foot', '고도는 DEM 추정값 · 소요시간은 계산값'))

@@ -33,8 +33,53 @@ const META_CSV = 'data/courses.meta.csv'
 const OUT_DIR = 'public/data'
 const OUT_COURSE = join(OUT_DIR, 'course')
 
+/** CSV 로 덮어쓸 수 있는 필드. 여기 없는 열은 무시된다. */
+const OVERRIDE_FIELDS = [
+  'name',
+  'region',
+  'start',
+  'end',
+  'startAddr',
+  'startAccess',
+  'endAddr',
+  'endAccess',
+  'difficulty',
+  'alias',
+  'note',
+]
+
 const r5 = (n) => Math.round(n * 1e5) / 1e5 // 좌표 소수점 5자리 ≈ 1m
 const r1 = (n) => Math.round(n * 10) / 10
+
+/**
+ * CSV 한 줄을 따옴표까지 처리해 쪼갠다.
+ *
+ * `line.split(',')` 로는 안 된다. 교통편처럼 값 안에 콤마가 있는 항목
+ * (`경성대부경대역 24번 버스, 오륙도스카이워크 하차`)이 **경고도 없이 잘린다.**
+ * 값에 콤마가 있으면 `"..."` 로 감싸고, 값 안의 따옴표는 `""` 로 쓴다.
+ */
+function parseCsvLine(line) {
+  const out = []
+  let cur = ''
+  let quoted = false
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (quoted) {
+      if (ch !== '"') cur += ch
+      else if (line[i + 1] === '"') {
+        cur += '"'
+        i++
+      } else quoted = false
+    } else if (ch === '"') quoted = true
+    else if (ch === ',') {
+      out.push(cur)
+      cur = ''
+    } else cur += ch
+  }
+  out.push(cur)
+  return out
+}
 
 /** 수기 보정 CSV를 읽는다. 빈 칸은 덮어쓰지 않는다. */
 function loadOverrides() {
@@ -45,11 +90,10 @@ function loadOverrides() {
     .filter((l) => l && !l.startsWith('#'))
   if (lines.length === 0) return new Map()
 
-  const cols = lines[0].split(',').map((s) => s.trim())
+  const cols = parseCsvLine(lines[0]).map((s) => s.trim())
   const map = new Map()
   for (const line of lines.slice(1)) {
-    // 지점명에 콤마가 없다는 전제. 있으면 CSV 파서를 붙여야 한다.
-    const cells = line.split(',')
+    const cells = parseCsvLine(line)
     const row = {}
     cols.forEach((c, i) => {
       const v = (cells[i] ?? '').trim()
@@ -155,7 +199,7 @@ function main() {
   for (const c of built) {
     const o = overrides.get(c.id)
     if (!o) continue
-    for (const k of ['name', 'region', 'start', 'end', 'difficulty', 'alias', 'note']) {
+    for (const k of OVERRIDE_FIELDS) {
       if (o[k]) {
         c[k] = o[k]
         c[`${k}Source`] = 'csv'
@@ -163,6 +207,13 @@ function main() {
     }
     overridden++
   }
+
+  // CSV 를 적용한 뒤 연쇄 보정을 **다시** 돌린다.
+  // 이게 없으면 1코스 종점에 '부산역'을 적어도 2코스 시점은 여전히 비어 있어,
+  // 접합부마다 같은 값을 두 번씩 적어야 한다(89곳 중복 입력).
+  // chainFill 은 빈 값만 채우므로 CSV 값을 덮어쓸 위험이 없다.
+  const chainedAfterCsv = chainFill(mainCourses)
+  const regionsAfterCsv = normalizeRegions(mainCourses)
 
   // ── 3. 파생 지표 ─────────────────────────────────────────
   for (const c of built) {
@@ -185,6 +236,10 @@ function main() {
     region: c.region || '',
     start: c.start || '',
     end: c.end || '',
+    startAddr: c.startAddr || '',
+    startAccess: c.startAccess || '',
+    endAddr: c.endAddr || '',
+    endAccess: c.endAccess || '',
     alias: c.alias || '',
     note: c.note || '',
     distanceKm: c.km,
@@ -289,6 +344,12 @@ function main() {
     console.log(`  지역 통일   ${regionFixes.map((f) => `${f.from}->${f.to}`).join(', ')}`)
   }
   console.log(`  CSV 보정    ${overridden}개 코스`)
+  console.log(
+    `  CSV 후 연쇄 시점 ${chainedAfterCsv.start} · 종점 ${chainedAfterCsv.end}` +
+      (regionsAfterCsv.length ? ` · 지역 ${regionsAfterCsv.length}` : ''),
+  )
+  const withAccess = built.filter((c) => c.startAccess || c.endAccess).length
+  if (withAccess) console.log(`  교통편 정보  ${withAccess}개 코스`)
   const noPlace = built.filter((c) => !c.isAlt && (!c.start || !c.end))
   console.log(`  지점명 미확인 ${noPlace.length}개: ${noPlace.map((c) => c.id).join(',') || '없음'}`)
   const noRegion = built.filter((c) => !c.region)

@@ -95,6 +95,13 @@ export function parseTrackName(name, { isAlt = false } = {}) {
   return { start: '', end: '', region: '', alias, parsed: false }
 }
 
+/** 접합부를 공유하는 필드 쌍. 앞 코스의 종점 값 = 다음 코스의 시점 값. */
+const DEFAULT_PAIRS = [
+  ['start', 'end'],
+  ['startAddr', 'endAddr'],
+  ['startAccess', 'endAccess'],
+]
+
 /**
  * 코스가 연속이라는 성질로 빈 지점명을 메운다.
  * 앞 코스의 종점 = 다음 코스의 시점.
@@ -105,21 +112,25 @@ export function parseTrackName(name, { isAlt = false } = {}) {
  * @param {Array<{seq:number, isAlt:boolean, start:string, end:string, region:string}>} rows
  *        seq 오름차순, 본 코스만 (isAlt 제외)
  */
-export function chainFill(rows) {
+export function chainFill(rows, pairs = DEFAULT_PAIRS) {
   const filled = { start: 0, end: 0, region: 0 }
 
   for (let i = 0; i < rows.length; i++) {
     const prev = rows[i - 1]
     const next = rows[i + 1]
-    if (!rows[i].start && prev?.end) {
-      rows[i].start = prev.end
-      rows[i].startSource = 'chain'
-      filled.start++
-    }
-    if (!rows[i].end && next?.start) {
-      rows[i].end = next.start
-      rows[i].endSource = 'chain'
-      filled.end++
+    // 접합부를 공유하는 모든 필드에 같은 규칙을 적용한다.
+    // 지점명뿐 아니라 주소·교통편도 "앞 코스 종점 = 다음 코스 시점"이다.
+    for (const [startKey, endKey] of pairs) {
+      if (!rows[i][startKey] && prev?.[endKey]) {
+        rows[i][startKey] = prev[endKey]
+        rows[i][`${startKey}Source`] = 'chain'
+        if (startKey === 'start') filled.start++
+      }
+      if (!rows[i][endKey] && next?.[startKey]) {
+        rows[i][endKey] = next[startKey]
+        rows[i][`${endKey}Source`] = 'chain'
+        if (endKey === 'end') filled.end++
+      }
     }
   }
 
