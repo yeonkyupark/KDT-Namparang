@@ -139,24 +139,62 @@ GitHub 계정 문제나 정책 변경에 대한 탈출구다. 클라우드 동�
 | `search_courses(query)` | 지역명·지점명·별칭으로 검색 |
 | `get_trail_summary()` | 전체 개요(총거리·총상승) + 출처·주의사항 |
 
-**Claude Code**: 이 리포에 이미 `.mcp.json` 이 있다 — 이 폴더에서 세션을 열면 자동으로 붙는다.
+로컬 stdio 서버라 **claude.ai(웹)에서는 못 쓴다.** Claude Code(CLI) 또는 Claude
+Desktop(앱)에서만 동작한다. 다른 컴퓨터에서 쓰려면:
 
-**Claude Desktop**: `claude_desktop_config.json` 에 추가 (경로는 실제 리포 위치로 바꾼다):
+### 0. 공통 — 리포 내려받기
+
+```bash
+git clone https://github.com/yeonkyupark/KDT-Namparang.git
+cd KDT-Namparang
+npm install
+```
+
+코스 데이터(`public/data/*.json`)는 이미 리포에 들어 있으므로 빌드는 필요 없다.
+
+### Claude Code — 이 리포에서만 쓰기 (가장 간단)
+
+리포에 이미 `.mcp.json` 이 있다. 이 폴더에서 `claude` 를 실행하면 자동으로 인식되는데,
+**다른 사람의 리포라 처음엔 승인 프롬프트가 뜬다** — 그 프로젝트의 MCP 서버를 신뢰할지
+묻는 것이다. 승인하면 그 다음부터는 묻지 않는다.
+
+### Claude Code — 어느 폴더에서든 쓰기
+
+```bash
+claude mcp add namparang-gil --scope user -- node /absolute/path/to/KDT-Namparang/mcp/server.mjs
+```
+
+절대경로로 넣어야 한다(상대경로는 실행 디렉터리가 바뀌면 깨진다). `claude mcp list` 로 등록됐는지 확인.
+
+### Claude Desktop
+
+`claude_desktop_config.json` 에 추가한다.
+
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "namparang-gil": {
       "command": "node",
-      "args": ["/absolute/path/to/Namparang/mcp/server.mjs"]
+      "args": ["/absolute/path/to/KDT-Namparang/mcp/server.mjs"]
     }
   }
 }
 ```
 
-`node mcp/server.mjs` 로 직접 실행해 볼 수도 있다(표준입출력으로 JSON-RPC를 주고받는
-프로토콜이라 터미널에 그냥 실행하면 응답이 안 보인다 — 호스트가 자식 프로세스로 띄워야
-정상적으로 쓸 수 있다. 직접 확인하려면 `npx @modelcontextprotocol/inspector node mcp/server.mjs`).
+추가한 뒤 **Claude Desktop을 완전히 종료하고 다시 실행**해야 반영된다(핫 리로드 없음).
+
+### 직접 확인
+
+`node mcp/server.mjs` 를 터미널에 그냥 실행하면 응답이 안 보인다 — 표준입출력으로
+JSON-RPC를 주고받는 프로토콜이라 호스트(Claude)가 자식 프로세스로 띄워야 정상 동작한다.
+직접 도구를 눌러보려면:
+
+```bash
+npx @modelcontextprotocol/inspector node mcp/server.mjs
+```
 
 ## 보안 주의
 
