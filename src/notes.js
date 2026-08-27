@@ -242,9 +242,10 @@ export function createNotes({ host, view, courses, sync }) {
       // 좌표는 없지만 주소가 있는 경우가 있다(갤럭시 등 일부 기기는 좌표 대신
       // 주소 문자열을 XMP/IPTC 에 넣는다). 주소를 보여주면 어디를 클릭해야
       // 하는지 알 수 있으므로 배너에 그대로 띄운다.
-      latlng = await askLocation(file.name, exif)
-      source = 'map'
-      if (!latlng) return // 사용자가 취소
+      const picked = await askLocation(file.name, exif)
+      if (!picked) return // 사용자가 취소
+      latlng = picked.latlng
+      source = picked.via // 'gps' | 'map'
     }
 
     const near = nearestCourse(latlng)
@@ -312,10 +313,23 @@ export function createNotes({ host, view, courses, sync }) {
     return null
   }
 
-  /** 지도를 클릭해 위치를 받는다. */
+  /** 촬영 시각이 지금으로부터 이 시간(ms) 이내면 "방금 찍은 사진"으로 본다. */
+  const RECENT_MS = 15 * 60 * 1000
+
+  /**
+   * 지도를 클릭하거나, "현재 위치"를 눌러 위치를 받는다.
+   *
+   * 모바일에서 사진 라이브러리를 통해 파일을 고르면 iOS/Android가 개인정보
+   * 보호 차원에서 GPS EXIF를 지우고 넘기는 경우가 있다 — 브라우저에 도착하기
+   * 전에 사라진 데이터라 파싱으로는 복구할 수 없다. 하지만 사진을 찍은 자리에서
+   * 곧바로 등록하는 트레킹 중 흐름이라면, **그 순간의 실시간 GPS**
+   * (`navigator.geolocation`)가 사진의 EXIF 좌표와 실질적으로 같다.
+   * 그래서 지도 클릭과 나란히 "현재 위치 사용"을 제공한다 — 나중에(그날
+   * 저녁 등) 몰아서 올리는 사진은 이 위치가 틀리므로 지도 클릭도 그대로 둔다.
+   */
   function askLocation(fileName, exif = {}) {
     const banner = el('div', 'pick-banner')
-    banner.append(el('b', null, '지도를 클릭해 위치를 지정하세요'))
+    banner.append(el('b', null, '위치를 지정하세요'))
 
     if (exif.address) {
       // 주소가 있으면 그게 가장 쓸모있는 단서다. 파일명보다 먼저 크게 보여준다.
@@ -326,7 +340,7 @@ export function createNotes({ host, view, courses, sync }) {
         el(
           'span',
           'pick-sub',
-          `${fileName} — 사진에 위치 정보가 없습니다 (메신저·SNS를 거치거나 촬영 시 위치 태그가 꺼져 있으면 지워집니다)`,
+          `${fileName} — 사진에 위치 정보가 없습니다 (모바일에서 사진첩을 거치면 GPS가 지워지는 경우가 있습니다)`,
         ),
       )
     }
@@ -338,6 +352,19 @@ export function createNotes({ host, view, courses, sync }) {
       banner.append(el('span', 'pick-hint', `지도 이동: ${matched.label}`))
     }
 
+    const takenRecently =
+      exif.takenAt && Date.now() - new Date(exif.takenAt).getTime() <= RECENT_MS
+    const gpsBtn = el(
+      'button',
+      `pick-gps${takenRecently ? ' is-suggested' : ''}`,
+      '📍 지금 여기(현재 위치) 사용',
+    )
+    gpsBtn.type = 'button'
+    banner.append(gpsBtn)
+    banner.append(
+      el('span', 'pick-hint', '사진을 방금 찍었다면 정확합니다. 예전 사진이면 지도를 클릭하세요.'),
+    )
+
     const cancel = el('button', 'pick-cancel', '취소')
     cancel.type = 'button'
     banner.append(cancel)
@@ -346,7 +373,41 @@ export function createNotes({ host, view, courses, sync }) {
     picking = view.pickLocation()
     cancel.onclick = () => picking?.cancel()
 
-    return picking.promise.finally(() => {
+    // 지도 클릭과 "현재 위치" 버튼 중 먼저 들어온 값이 이긴다.
+    let settled = false
+    let resolveOuter
+    const outer = new Promise((resolve) => (resolveOuter = resolve))
+    const finishOnce = (latlng, via) => {
+      if (settled) return
+      settled = true
+      picking?.cancel()
+      resolveOuter(latlng ? { latlng, via } : null)
+    }
+    picking.promise.then((v) => finishOnce(v, 'map'))
+
+    gpsBtn.onclick = () => {
+      if (!navigator.geolocation) {
+        toast('이 브라우저는 위치 조회를 지원하지 않습니다')
+        return
+      }
+      gpsBtn.disabled = true
+      gpsBtn.textContent = '위치 확인 중…'
+      navigator.geolocation.getCurrentPosition(
+        (pos) => finishOnce([pos.coords.latitude, pos.coords.longitude], 'gps'),
+        (err) => {
+          gpsBtn.disabled = false
+          gpsBtn.textContent = '📍 지금 여기(현재 위치) 사용'
+          toast(
+            err.code === err.PERMISSION_DENIED
+              ? '위치 접근이 거부됐습니다 — 브라우저 설정에서 허용하거나 지도를 클릭하세요'
+              : `위치를 가져올 수 없습니다 — ${err.message}`,
+          )
+        },
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+      )
+    }
+
+    return outer.finally(() => {
       banner.remove()
       picking = null
     })
@@ -401,7 +462,11 @@ export function createNotes({ host, view, courses, sync }) {
     meta.append(labelled('코스', courseSel))
     const infoBits = []
     if (draft.takenAt) infoBits.push(`촬영 ${fmtDate(draft.takenAt)}`)
-    infoBits.push(draft.locationSource === 'exif' ? '위치: 사진 EXIF' : '위치: 지도 지정')
+    infoBits.push(
+      { exif: '위치: 사진 EXIF', gps: '위치: 현재 위치', map: '위치: 지도 지정' }[
+        draft.locationSource
+      ] ?? '위치: 지도 지정',
+    )
     if (near) infoBits.push(`코스에서 ${Math.round(near.distM)}m`)
     meta.append(el('div', 'form-info', infoBits.join(' · ')))
     if (draft.address) meta.append(el('div', 'form-addr', `📍 사진에 기록된 주소: ${draft.address}`))

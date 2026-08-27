@@ -659,6 +659,24 @@ body {
   font-size: .84rem;
 }
 .pick-sub { color: var(--fg-dim); font-size: .74rem; }
+
+.pick-gps {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: .32rem .6rem;
+  cursor: pointer;
+}
+.pick-gps:hover:not(:disabled) { border-color: var(--accent); }
+.pick-gps:disabled { opacity: .6; cursor: default; }
+/* 촬영 시각이 15분 이내면 이 버튼이 정답일 확률이 높다 — 살짝 강조한다 */
+.pick-gps.is-suggested { box-shadow: 0 0 0 2px var(--accent-soft); }
+
 .pick-cancel {
   flex: 0 0 auto;
   font: inherit;
