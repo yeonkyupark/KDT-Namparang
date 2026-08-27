@@ -51,11 +51,18 @@ function renderShell() {
   const mapwrap = el('div', 'mapwrap')
   const mapEl = el('div', 'map')
   mapEl.id = 'map'
-  mapwrap.append(mapEl)
+
+  // 코스 정보 카드를 mapwrap 에 직접 붙이면 bottom 기준이 '지도 + 고도 프로필'의
+  // 밑단이 되어, 카드가 지도/프로필 경계를 걸치고 지도 우측 하단 attribution 과
+  // 겹친다(attribution 의 z-index 가 더 높아 글자가 카드 위로 겹쳐 찍힌다).
+  // 지도 행만 덮는 오버레이 층을 따로 둔다.
+  const mapOverlay = el('div', 'map-overlay')
+
+  mapwrap.append(mapEl, mapOverlay)
   stage.append(mapwrap)
 
   app.append(header, stage)
-  return { header, tileGroup, tools, stage, mapwrap, mapEl, sideBtn }
+  return { header, tileGroup, tools, stage, mapwrap, mapEl, mapOverlay, sideBtn }
 }
 
 function renderInfoCard(host, course) {
@@ -129,7 +136,7 @@ async function main() {
   configureDifficulty(meta.difficulty?.breaks)
 
   const byId = new Map(courses.map((c) => [c.id, c]))
-  const { tileGroup, tools, stage, mapwrap, mapEl, sideBtn } = renderShell()
+  const { tileGroup, tools, stage, mapwrap, mapEl, mapOverlay, sideBtn } = renderShell()
 
   /**
    * fitBounds가 피해야 하는 영역.
@@ -140,7 +147,7 @@ async function main() {
 
   const view = createMap(mapEl, courses, {
     getInsets,
-    onSelect: (c) => renderInfoCard(mapwrap, c),
+    onSelect: (c) => renderInfoCard(mapOverlay, c),
   })
 
   // ── 고도 프로필 ──────────────────────────────────────
@@ -196,7 +203,7 @@ async function main() {
     // 새 구간의 시작 코스로 갱신한다. (카드가 닫혀 있으면 굳이 열지 않는다)
     if (document.querySelector('.infocard')) {
       const head = courses.find((c) => !c.isAlt && c.seq === from)
-      if (head) renderInfoCard(mapwrap, head)
+      if (head) renderInfoCard(mapOverlay, head)
     }
 
     const token = ++applyToken
@@ -220,7 +227,7 @@ async function main() {
   const sidebar = createSidebar(stage, courses, {
     onRangeChange: (r) => applyRange(r),
     onPick: (c) => {
-      renderInfoCard(mapwrap, c)
+      renderInfoCard(mapOverlay, c)
       view.focus(c.id)
       sidebar.collapse()
     },

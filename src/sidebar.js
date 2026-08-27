@@ -159,6 +159,10 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
     fromSel.value = String(range.from)
     toSel.value = String(range.to)
     resetBtn.disabled = range.from === 1 && range.to === maxSeq
+
+    // 종료 코스 목록에서 시작보다 앞선 코스를 못 고르게 한다.
+    // 고르면 조용히 시작/종료가 뒤바뀌는데, 그게 더 놀랍다.
+    for (const opt of toSel.options) opt.disabled = Number(opt.value) < range.from
   }
 
   function commit(next, { notify = true } = {}) {
@@ -169,7 +173,13 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
     if (notify) onRangeChange?.({ ...range })
   }
 
-  fromSel.onchange = () => commit({ from: Number(fromSel.value), to: range.to })
+  fromSel.onchange = () => {
+    // 시작 코스를 바꾸면 종료 코스도 같은 코스로 맞춘다.
+    // 종료가 90에 남아 있으면 원하는 종료 코스까지 목록을 한참 스크롤해야 한다.
+    // 시작에 붙여두면 그 다음 선택이 바로 근처에서 끝난다.
+    const from = Number(fromSel.value)
+    commit({ from, to: from })
+  }
   toSel.onchange = () => commit({ from: range.from, to: Number(toSel.value) })
   resetBtn.onclick = () => commit({ from: 1, to: maxSeq })
 
