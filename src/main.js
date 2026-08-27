@@ -5,18 +5,18 @@ import './style.css'
 
 const STATS = [
   { n: '90', k: '코스 (+ 임시노선 2)' },
-  { n: '1,476', k: '총 거리 (km)' },
-  { n: '134,697', k: '트랙포인트' },
-  { n: '89 / 89', k: '접합부 500m 이내' },
+  { n: '1,463.9', k: '총 거리 (km)' },
+  { n: '29,217', k: '누적 상승 (m, DEM 추정)' },
+  { n: '415', k: '예상 소요 (시간)' },
 ]
 
 const STEPS = [
   { s: 'done', t: '데이터 확보', d: 'GPX 92개 수집 · 전수 검증' },
   { s: 'done', t: '출처 표기', d: 'data/SOURCE.md' },
   { s: 'done', t: '배포 파이프라인', d: 'Vite + GitHub Actions + Pages' },
-  { s: 'now',  t: '고도 확보', d: 'SRTM DEM 조회 · 이중 대조 검증' },
-  { s: 'todo', t: '전처리', d: 'GPX → courses.json' },
-  { s: 'todo', t: '랜딩 지도', d: 'Leaflet · 92개 코스 표시' },
+  { s: 'done', t: '고도 확보', d: 'SRTM DEM 29,660점 · 실측 대조 캘리브레이션' },
+  { s: 'done', t: '전처리', d: 'GPX → courses.json 118KB' },
+  { s: 'now',  t: '랜딩 지도', d: 'Leaflet · 92개 코스 표시' },
   { s: 'todo', t: '구간 선택', d: '시작~종료 코스 · 요약 정보' },
   { s: 'todo', t: '고도 프로필', d: 'SVG 차트' },
   { s: 'todo', t: '사진 · 메모', d: 'EXIF GPS · IndexedDB' },

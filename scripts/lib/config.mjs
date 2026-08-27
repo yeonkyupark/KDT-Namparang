@@ -38,16 +38,31 @@ export const ELE_THRESHOLD_M = 3
 /** 지도용 오버뷰 라인 단순화 허용오차 (m). */
 export const SIMPLIFY_OVERVIEW_M = 60
 
-/** 코스 상세 라인 단순화 허용오차 (m). */
-export const SIMPLIFY_DETAIL_M = 8
+/**
+ * 코스 상세 라인 단순화 허용오차 (m).
+ * ε4m = 코스당 평균 250점 / 5.1KB. ε8m으로 줄여도 3.3KB밖에 안 아끼면서
+ * 최대 줌에서 오차가 보이기 시작한다. 코스 파일은 lazy fetch라 이 정도는 부담이 아니다.
+ */
+export const SIMPLIFY_DETAIL_M = 4
 
 /** 소요시간 — 네이스미스 규칙 변형. */
 export const WALK_SPEED_KMH = 4
 export const ASCENT_SPEED_MH = 600
 
-/** 난이도 구분: 점수 = 거리km + 상승m/100 */
+/**
+ * 난이도 구분: 점수 = 거리km + 상승m/100
+ *
+ * 경계는 실제 90코스 분포에 맞춰 정했다. 이 트레일 안에서의 상대적 난이도다.
+ *
+ *   점수 분포: 최소 10.1 / 25% 16.7 / 중앙 18.9 / 75% 22.2 / 최대 30.8
+ *   거리 9.2~27.5km, 누적상승 54~985m
+ *
+ * 처음에 잡았던 10/16 경계는 코스가 이렇게 길 줄 모르고 추측한 값이라,
+ * 실제 데이터에 대면 90개 중 73개가 '어려움'으로 몰려 쓸모없는 척도가 됐다.
+ * 16/22 로 옮기면 쉬움 17 / 보통 48 / 어려움 25 로 갈린다.
+ */
 export const DIFFICULTY_BREAKS = [
-  { max: 10, label: '쉬움' },
-  { max: 16, label: '보통' },
+  { max: 16, label: '쉬움' },
+  { max: 22, label: '보통' },
   { max: Infinity, label: '어려움' },
 ]
