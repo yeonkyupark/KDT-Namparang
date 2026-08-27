@@ -922,3 +922,45 @@ body {
   color: var(--fg-dim);
   font-size: .74rem;
 }
+
+/* ── ZIP 백업 ────────────────────────────────────────── */
+
+.backup-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .25rem .5rem;
+  margin-top: .5rem;
+  padding-top: .5rem;
+  border-top: 1px solid var(--line);
+}
+
+.backup-label {
+  color: var(--fg-dim);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  flex: 0 0 auto;
+}
+
+.link-btn {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: .76rem;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.link-btn:hover:not(:disabled) { border-bottom-color: var(--accent); }
+.link-btn:disabled { opacity: .5; cursor: default; }
+
+.backup-msg {
+  width: 100%;
+  color: var(--fg-dim);
+  font-size: .68rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}

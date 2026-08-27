@@ -84,7 +84,52 @@ export function createNotes({ host, view, courses, sync }) {
   const syncMsg = el('span', 'sync-msg')
   syncRow.append(syncBtn, gearBtn, syncMsg)
 
-  host.append(head, addBtn, input, list, syncRow, usageLine)
+  // ── 백업 줄 ──────────────────────────────────────────
+  const backupRow = el('div', 'backup-row')
+  const expBtn = el('button', 'link-btn', '내보내기')
+  const impBtn = el('button', 'link-btn', '가져오기')
+  expBtn.type = impBtn.type = 'button'
+  expBtn.title = '모든 기록과 사진을 ZIP 파일로 저장'
+  impBtn.title = '백업 ZIP 파일에서 복원 (기존 기록과 병합)'
+  const zipInput = document.createElement('input')
+  zipInput.type = 'file'
+  zipInput.accept = '.zip,application/zip'
+  zipInput.hidden = true
+  const backupMsg = el('span', 'backup-msg')
+  backupRow.append(el('span', 'backup-label', 'ZIP 백업'), expBtn, impBtn, zipInput, backupMsg)
+
+  host.append(head, addBtn, input, list, syncRow, backupRow, usageLine)
+
+  expBtn.onclick = async () => {
+    expBtn.disabled = true
+    try {
+      const { exportZip } = await import('./backup.js')
+      const r = await exportZip((m) => (backupMsg.textContent = m))
+      backupMsg.textContent = `${r.name} · 기록 ${r.notes}개 · 사진 ${r.photos}장 · ${formatBytes(r.bytes)}`
+    } catch (e) {
+      backupMsg.textContent = `내보내기 실패 — ${e.message}`
+    } finally {
+      expBtn.disabled = false
+    }
+  }
+
+  impBtn.onclick = () => zipInput.click()
+  zipInput.onchange = async () => {
+    const file = zipInput.files?.[0]
+    zipInput.value = ''
+    if (!file) return
+    impBtn.disabled = true
+    try {
+      const { importZip } = await import('./backup.js')
+      const r = await importZip(file, (m) => (backupMsg.textContent = m))
+      backupMsg.textContent = `가져오기 완료 · 추가 ${r.added} · 갱신 ${r.updated} · 건너뜀 ${r.skipped}`
+      await load()
+    } catch (e) {
+      backupMsg.textContent = `가져오기 실패 — ${e.message}`
+    } finally {
+      impBtn.disabled = false
+    }
+  }
 
   const PHASE_TEXT = {
     start: '동기화 시작…',

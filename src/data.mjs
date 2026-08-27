@@ -5,7 +5,17 @@
  * (`/KDT-Namparang/`)와 로컬 루트(`/`) 양쪽에서 같은 코드가 동작해야 한다.
  */
 
-const url = (p) => new URL(`data/${p}`, document.baseURI).href
+/**
+ * `index.html` 과 `data/*.json` 은 파일명에 해시가 없어 GitHub Pages 캐시
+ * (`Cache-Control: max-age=600`)에 걸린다. 새 JS 가 옛 데이터를 받으면
+ * 필드가 없어 화면이 깨질 수 있으므로 빌드 ID 를 붙여 캐시를 깬다.
+ * (JS/CSS 는 Vite 가 파일명에 해시를 붙여주므로 이 문제가 없다)
+ */
+const url = (p) => {
+  const u = new URL(`data/${p}`, document.baseURI)
+  u.searchParams.set('v', __BUILD_ID__)
+  return u.href
+}
 
 async function getJson(path) {
   const res = await fetch(url(path))

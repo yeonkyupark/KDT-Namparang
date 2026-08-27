@@ -445,7 +445,7 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 | ~~5. 고도 프로필~~ | ~~인라인 SVG 차트, 지도 커서 동기화, "DEM 추정값" 각주~~ | ✅ **완료** — JS 50.2KB gzip / CSS 8.5KB | ~~0.5일~~ |
 | ~~6a. 사진/메모 (로컬)~~ | ~~IndexedDB, EXIF, 리사이즈, 핀/모달, 지도클릭 fallback~~ | ✅ **완료** — JS 55.8KB gzip + exifr 14.6KB(지연 로딩) | ~~2일~~ |
 | **6b. GitHub 동기화** | ~~`github.js`/`settings.js`/`sync.js`, PAT UI, Contents API, raw 읽기~~ | ⏳ **구현 완료 · 인증 경로 미검증** — 사진 리포와 PAT 가 있어야 실제 push/pull 확인 가능 | 1일 |
-| **7. 백업 + 마감** | ZIP export/import, 모바일 반응형, 다크모드, CSP, Lighthouse, README | v1.0 릴리스 | 1일 |
+| ~~7. 백업 + 마감~~ | ~~ZIP export/import, CSP, 캐시 버스터, 접근성 점검, README~~ | ✅ **완료** | ~~1일~~ |
 
 남은 작업량 약 **9.5일** (Supabase 폐기로 0.5일 단축). 각 단계 끝에 커밋 + 배포하여 **항상 동작하는 상태**를 유지한다.
 
@@ -479,13 +479,19 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 
 단계 0 완료. 다음은:
 
-단계 0, 2a, 2b, 3, 4, 5, 6a 완료. 남은 것:
+전체 단계 완료 (0, 2a, 2b, 3, 4, 5, 6a, 6b, 7).
 
-1. **GitHub 동기화 (단계 6b)** — Contents API, 브라우저 보관 PAT, 동기화 큐.
-   `namparang-photos` 리포를 여기서 만든다
-2. **마감 (단계 7)** — ZIP export/import, CSP, Lighthouse, README
-   · 데이터 fetch에 `generatedAt` 기반 캐시 버스터 추가 (`index.html`과 `data/*.json`은
-     해시가 없어 GitHub Pages 캐시에 걸린다)
+**남은 것 하나** — GitHub 동기화의 **인증 경로 실측**. 사진 리포
+(`KDT-Namparang-photos`)와 fine-grained PAT 가 있어야 실제 push/pull 을 확인할 수 있다.
+인증이 필요 없는 경로는 전부 검증했다(6b 메모 참조).
+
+**의도적으로 넣지 않은 것**
+- 서비스 워커 오프라인 캐시. 등산 중 타일이 안 보이는 문제를 해결하려면 필요하지만,
+  타일 캐시 용량 정책까지 얽혀서 별도 작업이다.
+- 주소 → 좌표 자동 변환(지오코딩). 외부 서비스 의존이 생긴다. 현재는 주소를 보여주고
+  지도를 해당 구간(3~5km 축척)으로 옮겨주는 것으로 대신한다.
+- 14개 코스(1,2,3,36~46)의 시작·종료 지점명. 원본에 정보가 없어 비워뒀다.
+  `data/courses.meta.csv` 에 채우면 재빌드 시 반영된다.
 
 **미해결로 남긴 것**
 - 14개 코스(1,2,3,36~46)의 시작·종료 지점명이 원본에 없다. `data/courses.meta.csv`에
@@ -510,6 +516,23 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
   전국 축척(100km)에서 클릭하는 것과 비교하면 정밀도가 크게 올라간다.
 - 폼에 메타데이터 진단(어떤 키가 있었는지 + 복사 버튼)을 넣었다. 기기마다
   넣는 위치가 달라서, 안 되는 사진이 나오면 이걸로 어디를 봐야 하는지 알 수 있다.
+
+**단계 7 구현 메모**
+- **데이터 캐시 버스터.** `index.html` 과 `data/*.json` 은 파일명에 해시가 없어
+  GitHub Pages 캐시(`max-age=600`)에 걸린다. 새 JS 가 옛 `courses.json`(예: `eleLow` 없음)을
+  받으면 화면이 깨진다. 빌드마다 바뀌는 `__BUILD_ID__` 를 쿼리로 붙여 깬다.
+- **CSP 를 meta 태그로 걸었다.** 토큰을 브라우저에 보관하므로 실행 코드 출처를 조인다.
+  서드파티 스크립트가 0개라 `script-src 'self'` 가 가능하다. 빌드 산출물에 인라인
+  스크립트가 없음을 확인했고, 타일 3종·GitHub API·raw 사진이 모두 통과하는 것을 실측했다.
+  `style-src` 에 `'unsafe-inline'` 은 남겼다 — Leaflet 이 style 속성을 직접 넣는다.
+- **ZIP 백업.** `fflate` 로 `notes.json` + `photos/` + `thumbs/`. JPEG 는 이미 압축돼
+  있어 `level: 0` 으로 담는다. 가져오기는 동기화와 같은 LWW 병합이라 **멱등**하다
+  (같은 백업 두 번 넣어도 2개 유지, 전부 skipped 로 실측 확인).
+- 없는 스크립트(`build:notes`)를 `package.json` 에서 제거했다. 단계 6b에서 단일 파일
+  방식으로 바꿔 불필요해진 것을 지우지 않고 있었다.
+- **Lighthouse 는 돌리지 않았다.** 대신 수동 점검: `lang=ko`, title/description,
+  `color-scheme`, `theme-color`(라이트/다크), CSP, 아이콘 버튼 `aria-label`,
+  `img alt`, 입력 레이블, 탭 타겟 24px 이상 - 모두 통과.
 
 **단계 6b 구현 메모**
 - **계획을 하나 바꿨다.** 메모를 노트당 파일 1개(`data/notes/{id}.json`)로 두려 했는데

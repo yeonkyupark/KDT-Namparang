@@ -3,8 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!--
+    Content Security Policy.
+
+    이 앱은 사용자의 GitHub 개인 액세스 토큰을 브라우저(localStorage)에 보관한다.
+    XSS 가 터지면 그 토큰이 유출되므로, 실행 가능한 코드의 출처를 자기 자신으로
+    묶어둔다. 서드파티 스크립트를 하나도 쓰지 않기 때문에 이렇게 조일 수 있다.
+
+    각 항목의 이유
+      img-src   지도 타일 3종(OSM/OpenTopoMap/Esri) + 원격 사진(raw) + 로컬 Blob·data
+      connect-src  코스 데이터(self) + GitHub 동기화(api, raw)
+      style-src 'unsafe-inline'  Leaflet 이 style 속성을 직접 넣는다
+      object-src 'none' / base-uri 'self' / form-action 'none'  쓰지 않는 통로는 막는다
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob: https://tile.openstreetmap.org https://a.tile.opentopomap.org https://b.tile.opentopomap.org https://c.tile.opentopomap.org https://server.arcgisonline.com https://raw.githubusercontent.com;
+    connect-src 'self' https://api.github.com https://raw.githubusercontent.com;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none';
+  " />
+
   <title>남파랑길 가이드</title>
-  <meta name="description" content="부산 오륙도에서 해남 땅끝탑까지, 남파랑길 90개 코스 가이드 — 개인용 트레킹 기록" />
+  <meta name="description" content="부산 오륙도에서 해남 땅끝탑까지, 남파랑길 90개 코스 가이드 — 구간 선택 · 고도 프로필 · 사진과 메모 기록" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#0d6b5f" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#14171a" media="(prefers-color-scheme: dark)" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥾</text></svg>" />
 </head>
 <body>
