@@ -90,8 +90,9 @@
 
 **성능 예산**: 랜딩 첫 로딩 JS ≤ 80KB(gzip), 초기 데이터 ≤ 300KB, 코스 상세는 lazy fetch.
 
-**단계 5 실측**: JS **50.2KB** gzip (Leaflet 42KB + 자체 코드 8KB) · CSS **8.5KB** gzip ·
-`courses.json` 129KB → 전송 시 **37.5KB** gzip. 예산 안이다. 차트 라이브러리 의존성 0.
+**단계 6a 실측**: JS **55.8KB** gzip (Leaflet 42 + 자체 코드 14) · CSS **9.6KB** ·
+`exifr` **14.6KB** (사진 등록 시에만 지연 로딩) · `courses.json` 전송 **37.5KB** gzip.
+랜딩 예산(80KB) 안이다. 차트 라이브러리 의존성 0.
 
 ---
 
@@ -442,7 +443,7 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 | ~~3. 랜딩 지도~~ | ~~Leaflet, 92개 전체 표시, 타일 토글, 시작점 마커, 코스 정보 카드~~ | ✅ **완료** — JS 47.2KB gzip / CSS 7.8KB / 데이터 32.6KB gzip | ~~1일~~ |
 | ~~4. 구간 선택 + 정보~~ | ~~사이드바, 시작/종료 select, 강조 렌더, 요약, URL 동기화, `isAlt` 합계 제외, 모바일 바텀시트~~ | ✅ **완료** — JS 48.0KB gzip / CSS 8.3KB | ~~1.5일~~ |
 | ~~5. 고도 프로필~~ | ~~인라인 SVG 차트, 지도 커서 동기화, "DEM 추정값" 각주~~ | ✅ **완료** — JS 50.2KB gzip / CSS 8.5KB | ~~0.5일~~ |
-| **6a. 사진/메모 (로컬)** | IndexedDB, EXIF, 리사이즈, 핀/팝업/모달, 지도클릭 fallback | 오프라인 기록 동작 | 2일 |
+| ~~6a. 사진/메모 (로컬)~~ | ~~IndexedDB, EXIF, 리사이즈, 핀/모달, 지도클릭 fallback~~ | ✅ **완료** — JS 55.8KB gzip + exifr 14.6KB(지연 로딩) | ~~2일~~ |
 | **6b. GitHub 동기화** | `github.js`/`token.js`, PAT 입력 UI, Contents API 커밋, raw 읽기, 동기화 큐, 용량 표시 | 기기 간 동기화 | 1일 |
 | **7. 백업 + 마감** | ZIP export/import, 모바일 반응형, 다크모드, CSP, Lighthouse, README | v1.0 릴리스 | 1일 |
 
@@ -478,13 +479,11 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 
 단계 0 완료. 다음은:
 
-단계 0, 2a, 2b, 3, 4, 5 완료. 남은 것:
+단계 0, 2a, 2b, 3, 4, 5, 6a 완료. 남은 것:
 
-1. **사진 · 메모 (단계 6a)** — IndexedDB, EXIF GPS 추출, 리사이즈, 핀/팝업/모달,
-   EXIF 없는 사진은 지도 클릭으로 위치 지정
-2. **GitHub 동기화 (단계 6b)** — Contents API, 브라우저 보관 PAT, 동기화 큐.
+1. **GitHub 동기화 (단계 6b)** — Contents API, 브라우저 보관 PAT, 동기화 큐.
    `namparang-photos` 리포를 여기서 만든다
-3. **마감 (단계 7)** — ZIP export/import, CSP, Lighthouse, README
+2. **마감 (단계 7)** — ZIP export/import, CSP, Lighthouse, README
    · 데이터 fetch에 `generatedAt` 기반 캐시 버스터 추가 (`index.html`과 `data/*.json`은
      해시가 없어 GitHub Pages 캐시에 걸린다)
 
@@ -494,6 +493,23 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
 - `nam-27` 고도 이상 (평균절대오차 38.4m) 원인 미확정
 - 모바일 세로 화면에서 트레일이 작게 보인다. 가로로 긴 경로를 전부 담아야 하니
   fitBounds로는 불가피하다 — 랜딩 목적에는 맞다.
+
+**단계 6a 구현 메모**
+- `exifr` 기본 진입점은 full 빌드(25.5KB gzip)다. `lite`(14.6KB)에 gps·촬영일시·HEIC 가
+  다 있어 그걸 쓴다. `mini`(8.9KB)는 HEIC 가 없어 아이폰 원본을 못 읽는다.
+- **`pick` 옵션은 lite 빌드에서 예외를 던진다** ("undefined is not iterable") —
+  작은 빌드는 태그 이름 사전이 잘려 있다. 기본 `parse(file)` 가 좌표와 촬영일시를
+  한 번에 주므로 두 번 읽던 것을 한 번으로 합쳤다.
+- **위치 지정 중 Leaflet 레이어 클릭을 통과시켜야 한다.** Leaflet 은 작은 마커
+  (radius ≤ 10)를 클릭하면 `e.latlng` 을 **마커 좌표로 바꿔서** 넘긴다.
+  그대로 두면 클릭한 자리가 아니라 코스 시작점에 사진이 박히고 코스 정보 카드까지 열린다.
+  pane 에 `pointer-events: none` 만 걸면 안 통한다 — Leaflet 이 path/마커 요소 자체에
+  `pointer-events: auto` 를 명시하므로 요소를 직접 겨냥해야 한다.
+- 삭제는 **소프트 삭제**(`deleted: true`). 단계 6b에서 기기 간 삭제를 전파하려면
+  "삭제됐다"는 사실이 남아야 한다. 용량이 큰 사진 Blob 은 즉시 지운다.
+- 사진 원본은 보관하지 않는다. 1280px / JPEG 0.75 로 줄여 저장한다
+  (검증: 2400×1800 입력 → 1280×960 저장).
+- 메모는 `textContent` 로만 렌더한다. `innerHTML` 을 쓰면 단계 6b의 PAT 가 XSS 표적이 된다.
 
 **UX 수정 (단계 5 이후)**
 - 코스 정보 카드가 지도 attribution 과 겹쳐 글자가 뭉개졌다. 카드를 `.mapwrap`

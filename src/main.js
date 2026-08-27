@@ -6,6 +6,7 @@ import { createProfile } from './profile.js'
 import { readState, writeState } from './state.js'
 import { configureDifficulty } from './metrics.js'
 import { cumulative, pointAtFraction } from './geo.js'
+import { createNotes } from './notes.js'
 
 /**
  * 선택 구간이 이 개수 이하일 때만 상세 라인·고도를 받는다.
@@ -234,6 +235,9 @@ async function main() {
     onHover: (id, on) => view.accent(id, on),
   })
 
+  // ── 사진 · 메모 ──────────────────────────────────────
+  const notes = createNotes({ host: sidebar.notesHost, view, courses })
+
   // ── 타일 토글 ────────────────────────────────────────
   const buttons = TILE_NAMES.map((name) => {
     const b = el('button', 'seg-btn' + (name === layer ? ' is-on' : ''), name)
@@ -304,6 +308,9 @@ async function main() {
   view.setTile(layer)
   sidebar.setRange(initial.from, initial.to, { notify: false })
   await applyRange({ from: initial.from, to: initial.to })
+
+  // 코스 데이터가 먼저 보이는 게 중요하므로 기록은 뒤이어 올린다.
+  notes.load()
 
   window.addEventListener('popstate', () => {
     const s = readState(opts)

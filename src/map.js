@@ -63,6 +63,10 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
   const casingGroup = L.layerGroup().addTo(map)
   const lineGroup = L.layerGroup().addTo(map)
   const markerGroup = L.layerGroup().addTo(map)
+  const noteGroup = L.layerGroup().addTo(map)
+
+  /** @type {Map<string, {marker: L.Marker, url: string|null}>} 노트 핀 + 해제할 blob URL */
+  const notePins = new Map()
 
   /** @type {Map<string, object>} id -> {casing, line, marker, course, on, detail} */
   const rendered = new Map()
@@ -246,6 +250,80 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
         if (key === name) layer.addTo(map)
         else map.removeLayer(layer)
       }
+    },
+
+    // ── 사진·메모 핀 ───────────────────────────────────
+    /**
+     * 노트 핀을 올린다. 이미 있으면 갈아끼운다.
+     * 썸네일이 있으면 핀 자체를 작은 사진으로 만든다 — 지도만 봐도 어디서
+     * 뭘 찍었는지 알 수 있다.
+     */
+    setNotePin(note, { onClick } = {}) {
+      this.removeNotePin(note.id)
+
+      const el = document.createElement('div')
+      el.className = 'note-pin'
+      let url = null
+      if (note.thumb) {
+        url = URL.createObjectURL(note.thumb)
+        const img = document.createElement('img')
+        img.src = url
+        img.alt = note.title || '사진'
+        el.append(img)
+      } else {
+        el.classList.add('is-empty')
+        el.textContent = '📷'
+      }
+
+      const marker = L.marker([note.lat, note.lng], {
+        icon: L.divIcon({ html: el, className: '', iconSize: [30, 30], iconAnchor: [15, 15] }),
+        title: note.title || '기록',
+        riseOnHover: true,
+        zIndexOffset: 1000, // 코스 선·시작점 마커보다 위에
+      }).addTo(noteGroup)
+
+      marker.on('click', () => onClick?.(note))
+      notePins.set(note.id, { marker, url })
+      return marker
+    },
+
+    removeNotePin(id) {
+      const prev = notePins.get(id)
+      if (!prev) return
+      noteGroup.removeLayer(prev.marker)
+      // divIcon 안의 blob URL 을 놓아준다. 안 하면 사진마다 메모리가 샌다.
+      if (prev.url) URL.revokeObjectURL(prev.url)
+      notePins.delete(id)
+    },
+
+    clearNotePins() {
+      for (const id of [...notePins.keys()]) this.removeNotePin(id)
+    },
+
+    /**
+     * 지도 클릭으로 좌표 하나를 받는다. EXIF에 좌표가 없는 사진의 위치를 정할 때 쓴다.
+     * @returns {{promise: Promise<[number,number]|null>, cancel: () => void}}
+     */
+    pickLocation() {
+      const container = map.getContainer()
+      container.classList.add('is-picking')
+
+      let settle
+      const promise = new Promise((resolve) => (settle = resolve))
+
+      const finish = (value) => {
+        container.classList.remove('is-picking')
+        map.off('click', onClick)
+        settle(value)
+      }
+      const onClick = (e) => finish([e.latlng.lat, e.latlng.lng])
+
+      map.on('click', onClick)
+      return { promise, cancel: () => finish(null) }
+    },
+
+    panTo(latlng) {
+      map.panTo(latlng, { animate: true })
     },
   }
 }

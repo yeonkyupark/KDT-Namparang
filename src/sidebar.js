@@ -69,6 +69,10 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
   listWrap.append(list)
   body.append(listWrap)
 
+  // 사진·메모 섹션은 notes.js 가 채운다 (자리만 만들어 둔다)
+  const notesHost = el('div', 'notes-section')
+  body.append(notesHost)
+
   root.append(panel)
 
   // ── 상태 ─────────────────────────────────────────────
@@ -185,6 +189,7 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
 
   return {
     maxSeq,
+    notesHost,
     setRange: (from, to, opts) => commit({ from, to }, opts),
     getRange: () => ({ ...range }),
     /** 모바일에서 코스를 고르면 시트를 접어 지도를 보여준다. */
