@@ -87,7 +87,7 @@ npm run build:data   # GPX -> public/data/
 
 사진·메모는 기본적으로 **이 브라우저에만** 저장됩니다. 기기 간에 옮기려면 GitHub을 저장소로 씁니다.
 
-1. **사진 리포지토리를 만든다** — 예: `trail-photos`
+1. **사진 리포지토리를 만든다** — 예: `photo-repo`
    소스 리포를 가볍게 유지하려고 사진은 따로 둡니다. 커밋된 사진은 삭제해도
    git 히스토리에 남으므로, 소스 리포에 섞으면 `git clone` 이 계속 무거워집니다.
 
@@ -96,6 +96,14 @@ npm run build:data   # GPX -> public/data/
    해파랑길·서해랑길을 같은 구조로 만들 때 리포를 새로 만들 필요가 없습니다 —
    설정의 **사진 폴더** 만 `haeparang`, `seohaerang` 으로 바꾸면 됩니다.
    그래서 이름을 트레일에 묶이지 않게 짓는 편이 좋습니다.
+
+   ⚠️ **두 가지 주의**
+   - **README 를 포함해 만드세요.** 커밋이 하나도 없는 리포에는 기본 브랜치가 없어서
+     첫 업로드가 실패합니다. 생성 화면의 "Add a README file" 을 체크하면 됩니다.
+   - **공개(public) 로 만드세요.** 사진은 `raw.githubusercontent.com` 으로 읽는데,
+     비공개 리포의 raw URL 은 인증이 필요하고 `<img>` 태그는 인증 헤더를 보낼 수 없습니다.
+     즉 **비공개면 다른 기기에서 사진이 보이지 않습니다.** 공개 리포에 올린 사진은
+     URL 을 아는 누구나 볼 수 있다는 뜻이기도 합니다 — 이 점을 감안해 결정하세요.
 2. **fine-grained PAT 를 만든다** — [토큰 만들기](https://github.com/settings/personal-access-tokens/new)
    - Repository access: 위 리포 2개만 선택
    - Permissions → Repository permissions → **Contents: Read and write**

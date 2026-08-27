@@ -994,3 +994,23 @@ body {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
+
+/* ── 연결 확인 결과 ─────────────────────────────────── */
+
+.check-list { margin: .2rem 0 0; padding: 0; list-style: none; }
+.check-list li {
+  display: flex;
+  align-items: baseline;
+  gap: .35rem;
+  padding: .12rem 0;
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.check-mark { flex: 0 0 .8rem; font-weight: 700; }
+.check-ok { color: var(--fg-dim); }
+.check-ok .check-mark { color: var(--accent); }
+.check-warn { color: #a35d00; }
+.check-bad { color: #cf4436; }
+@media (prefers-color-scheme: dark) {
+  .check-warn { color: #e0a44b; }
+}

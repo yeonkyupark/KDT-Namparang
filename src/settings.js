@@ -31,7 +31,7 @@ const KEY = 'namparang.sync'
 const DEFAULTS = {
   owner: 'yeonkyupark',
   repo: 'KDT-Namparang',
-  photoRepo: 'trail-photos',
+  photoRepo: 'photo-repo',
   /**
    * 사진 리포 안에서 이 프로젝트가 쓰는 최상위 폴더.
    *
@@ -203,6 +203,57 @@ export function openSettings({ current, onSave, onCheck }) {
 
   const foot = el('div', 'modal-foot')
 
+  /** 검사 결과를 항목별로 그린다. 통과/경고/실패를 한눈에 보이게. */
+  function renderCheck(r) {
+    status.textContent = ''
+    status.className = 'settings-status'
+
+    const rows = []
+    const add = (kind, text) => rows.push({ kind, text })
+
+    add('ok', `${r.login} 계정으로 인증됨`)
+
+    // 메모 리포
+    const n = r.notes
+    if (!n.canWrite) add('bad', `${n.fullName}: 쓰기 권한 없음 — Contents: Read and write 로 설정하세요`)
+    else add('ok', `${n.fullName}: 쓰기 가능`)
+    if (n.empty) {
+      add('warn', `${n.fullName}: 커밋이 없어 '${r.branch}' 브랜치가 아직 없습니다 — README 를 하나 만들어 초기화하세요`)
+    } else if (n.defaultBranch && n.defaultBranch !== r.branch) {
+      add('warn', `${n.fullName}: 기본 브랜치가 '${n.defaultBranch}' 인데 설정은 '${r.branch}' 입니다`)
+    }
+
+    // 사진 리포
+    const p = r.photos
+    if (!p) {
+      add('warn', '사진 리포가 비어 있습니다 — 메모만 동기화되고 사진은 올라가지 않습니다')
+    } else if (p.error) {
+      add('bad', `사진 리포: ${p.error}`)
+    } else {
+      if (!p.canWrite) add('bad', `${p.fullName}: 쓰기 권한 없음`)
+      else add('ok', `${p.fullName}: 쓰기 가능`)
+      if (p.empty) {
+        add('warn', `${p.fullName}: 커밋이 없어 '${r.branch}' 브랜치가 아직 없습니다 — README 를 하나 만들어 초기화하세요`)
+      } else if (p.defaultBranch && p.defaultBranch !== r.branch) {
+        add('warn', `${p.fullName}: 기본 브랜치가 '${p.defaultBranch}' 인데 설정은 '${r.branch}' 입니다`)
+      }
+      // 비공개 리포의 raw URL 은 인증이 필요해 <img src> 로 못 읽는다
+      if (p.isPrivate) {
+        add('bad', `${p.fullName} 이(가) 비공개입니다 — 사진이 다른 기기에서 보이지 않습니다. 공개로 바꾸세요`)
+      }
+    }
+
+    const ul = document.createElement('ul')
+    ul.className = 'check-list'
+    for (const { kind, text } of rows) {
+      const li = el('li', `check-${kind}`)
+      li.append(el('span', 'check-mark', kind === 'ok' ? '✓' : kind === 'warn' ? '!' : '✕'))
+      li.append(el('span', null, text))
+      ul.append(li)
+    }
+    status.append(ul)
+  }
+
   const checkBtn = el('button', 'btn', '연결 확인')
   checkBtn.type = 'button'
   checkBtn.onclick = async () => {
@@ -210,18 +261,14 @@ export function openSettings({ current, onSave, onCheck }) {
     status.textContent = '확인 중…'
     checkBtn.disabled = true
     try {
-      const r = await onCheck(collect())
-      status.className = 'settings-status is-ok'
-      status.textContent =
-        `${r.login} 계정으로 ${r.repo} 접근 확인. ` +
-        (r.canWrite ? '쓰기 권한 있음.' : '⚠ 쓰기 권한이 없습니다 — Contents: Read and write 로 설정하세요.')
+      renderCheck(await onCheck(collect()))
     } catch (e) {
       status.className = 'settings-status is-bad'
       status.textContent =
         e.status === 401
           ? '토큰이 유효하지 않습니다 (401)'
           : e.status === 404
-            ? '리포지토리를 찾을 수 없거나 토큰에 접근 권한이 없습니다 (404)'
+            ? '메모 리포를 찾을 수 없거나 토큰에 접근 권한이 없습니다 (404)'
             : `실패 — ${e.message}`
     } finally {
       checkBtn.disabled = false

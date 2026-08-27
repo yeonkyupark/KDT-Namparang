@@ -299,14 +299,26 @@ async function main() {
           syncSettings = next
           saveSettings(next)
         },
-        // 확인은 저장 전 입력값으로 한다 — 틀린 토큰을 저장해두고 확인해봐야 의미가 없다
-        onCheck: (candidate) =>
-          createClient({
-            owner: candidate.owner,
-            repo: candidate.repo,
-            branch: candidate.branch,
-            token: candidate.token,
-          }).check(),
+        // 확인은 저장 전 입력값으로 한다 — 틀린 토큰을 저장해두고 확인해봐야 의미가 없다.
+        // 메모 리포와 사진 리포를 **둘 다** 본다. 하나만 통과해도 동기화는 실패한다.
+        onCheck: async (c) => {
+          const mk = (repo) =>
+            createClient({ owner: c.owner, repo, branch: c.branch, token: c.token })
+
+          const notesClient = mk(c.repo)
+          const login = await notesClient.whoami()
+          const notes = await notesClient.repoInfo()
+
+          let photos = null
+          if (c.photoRepo) {
+            try {
+              photos = await mk(c.photoRepo).repoInfo()
+            } catch (e) {
+              photos = { error: e.status === 404 ? '찾을 수 없거나 토큰에 권한이 없습니다' : e.message }
+            }
+          }
+          return { login, notes, photos, branch: c.branch || 'main' }
+        },
       }),
   }
   syncCore.onState((st) => {

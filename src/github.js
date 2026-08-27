@@ -161,19 +161,34 @@ export function createClient(cfg) {
       return { skipped: false, path }
     },
 
-    /**
-     * 토큰과 리포 접근 권한을 확인한다.
-     * @returns {Promise<{login: string, canWrite: boolean, repo: string}>}
-     */
-    async check() {
+    /** 토큰이 가리키는 사용자. */
+    async whoami() {
       if (!cfg.token) throw new GitHubError('토큰이 없습니다', 401, null)
       const user = await api('/user')
+      return user.login
+    },
+
+    /**
+     * 이 클라이언트가 가리키는 리포의 상태.
+     *
+     * `defaultBranch` 와 `empty` 를 함께 본다. 갓 만든 리포는 커밋이 없어
+     * 기본 브랜치도 없는데, 그 상태에서 `branch` 를 지정해 쓰면 실패한다.
+     */
+    async repoInfo() {
       const repo = await api(`/repos/${cfg.owner}/${cfg.repo}`)
+      let empty = false
+      try {
+        await api(`/repos/${cfg.owner}/${cfg.repo}/commits?per_page=1`)
+      } catch (e) {
+        if (e.status === 409) empty = true // "Git Repository is empty"
+        else if (e.status !== 404) throw e
+      }
       return {
-        login: user.login,
-        repo: repo.full_name,
+        fullName: repo.full_name,
         canWrite: Boolean(repo.permissions?.push),
-        private: Boolean(repo.private),
+        isPrivate: Boolean(repo.private),
+        defaultBranch: repo.default_branch ?? null,
+        empty,
       }
     },
   }
