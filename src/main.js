@@ -34,7 +34,7 @@ function renderShell() {
 
   const header = el('header', 'topbar')
 
-  const sideBtn = el('button', 'icon-btn')
+  const sideBtn = el('button', 'icon-btn side-toggle')
   sideBtn.type = 'button'
   sideBtn.setAttribute('aria-controls', 'sidepanel')
   header.append(sideBtn)
@@ -286,6 +286,7 @@ async function main() {
 
   const syncApi = {
     run: () => syncCore.run(),
+    pullPublic: () => syncCore.pullPublic(),
     onState: (fn) => syncCore.onState(fn),
     lastSyncedAt: () => syncCore.lastSyncedAt(),
     lastSyncedAtValue: null,
@@ -362,6 +363,19 @@ async function main() {
   fitBtn.type = 'button'
   fitBtn.onclick = () => view.fitAll()
   tools.append(fitBtn)
+
+  // ── 사진 핀 표시 on/off ──────────────────────────────
+  // 기록이 많아지면 지도가 사진 핀으로 덮여 코스 선이 안 보일 수 있다.
+  // 목록은 그대로 두고 지도 위 핀만 끄고 켠다.
+  const notesBtn = el('button', 'ghost-btn is-on', '사진')
+  notesBtn.type = 'button'
+  notesBtn.setAttribute('aria-pressed', 'true')
+  notesBtn.onclick = () => {
+    view.setNotesVisible(!view.notesVisible)
+    notesBtn.classList.toggle('is-on', view.notesVisible)
+    notesBtn.setAttribute('aria-pressed', String(view.notesVisible))
+  }
+  tools.append(notesBtn)
 
   // ── 사이드바 접기 ────────────────────────────────────
   // 화면 상태가 아니라 개인 취향이므로 URL이 아니라 localStorage 에 둔다.

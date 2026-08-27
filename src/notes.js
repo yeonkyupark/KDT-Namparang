@@ -767,6 +767,26 @@ export function createNotes({ host, view, courses, sync }) {
     // 지도를 움직이면 그려진 핀 수가 바뀌므로 표시도 따라가게 한다
     view.map.on('moveend zoomend', refreshUsage)
 
+    // 토큰 없이도 공개 리포의 최신 기록을 받아온다.
+    //
+    // 이게 없으면 리포 주인이 기기에서 "동기화"를 눌러야만 그 결과가 자기
+    // 화면에 보이고, 다른 방문자는 토큰이 없어 영원히 빈 지도만 본다.
+    // 쓰기(사진 업로드·notes.json 커밋)만 토큰이 필요하지, 공개 리포 읽기는
+    // 누구나 할 수 있다 — 그 경로를 타서 로컬에 조용히 병합한다.
+    if (sync) {
+      try {
+        const r = await sync.pullPublic()
+        if (r.pulled) {
+          for (const n of await allNotes()) notes.set(n.id, n)
+          view.syncNotePins(pinSource(), { onClick: openViewer })
+          renderList()
+          refreshUsage()
+        }
+      } catch {
+        // 오프라인이거나 리포가 아직 없을 수 있다 — 로컬 기록은 이미 보이므로 조용히 넘긴다
+      }
+    }
+
     if (sync && !syncMsg.textContent) {
       const at = await sync.lastSyncedAt()
       const expiry = sync.tokenExpiryNote?.()

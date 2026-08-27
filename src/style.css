@@ -441,8 +441,11 @@ body {
 @media (max-width: 860px) {
   .brand-sub { display: none; }
 
-  /* 좁은 화면에서는 시트 손잡이가 접기를 담당한다. 버튼이 둘이면 헷갈린다. */
-  .icon-btn { display: none; }
+  /* 좁은 화면에서는 시트 손잡이가 접기를 담당한다. 버튼이 둘이면 헷갈린다.
+     사이드바 접기 버튼만 숨긴다 — `.icon-btn` 을 통째로 숨기면 같은 클래스를
+     쓰는 GitHub 동기화 설정(⚙) 버튼까지 사라져 모바일에서 토큰을 넣을 방법이
+     없어진다(실제로 이 사고가 있었다). */
+  .side-toggle { display: none; }
   .shell.side-closed .stage { grid-template-columns: 1fr; }
   .seg-btn, .ghost-btn { padding: .3rem .5rem; font-size: .78rem; }
 
@@ -603,6 +606,23 @@ body {
 }
 .note-pin img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .note-pin.is-empty { display: grid; place-items: center; font-size: 15px; }
+
+/* 화면 픽셀 거리가 가까운 사진 핀을 묶은 클러스터. 사진은 안 들고 개수만 보여준다. */
+.note-cluster {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .45);
+  font-size: .82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
 
 /* 위치 지정 모드 */
 .leaflet-container.is-picking { cursor: crosshair; }

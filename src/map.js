@@ -67,12 +67,19 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
   /** @type {Map<string, {marker: L.Marker, url: string|null}>} 노트 핀 + 해제할 blob URL */
   const notePins = new Map()
+  /** @type {L.Marker[]} 클러스터 핀. 사진을 들고 있지 않아 매 redraw마다 통째로 다시 그린다. */
+  const clusterMarkers = []
 
   /** 화면 범위 기반 핀 렌더링 상태 */
   let noteSource = []
   let noteClick = null
-  /** 한 화면에 이 개수를 넘으면 더 그리지 않는다. 지도가 점으로 뒤덮이는 것도 막는다. */
-  const MAX_PINS = 150
+  let notesVisible = true
+  /** 화면 범위 안 후보를 이 개수까지만 본다. 그리디 클러스터링이 O(n²)라 안전장치가 필요하다. */
+  const MAX_CANDIDATES = 600
+  /** 이 픽셀 거리 안의 핀은 하나의 클러스터로 묶는다. */
+  const CLUSTER_PX = 42
+  /** 마지막 redraw에서 실제로 본 후보 수 (상태 표시용). */
+  let lastCandidateCount = 0
 
   /** @type {Map<string, object>} id -> {casing, line, marker, course, on, detail} */
   const rendered = new Map()
@@ -178,22 +185,88 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     notePins.delete(id)
   }
 
-  /** 현재 화면 범위에 드는 노트만 핀으로 남긴다. */
+  /**
+   * 클러스터 핀 하나를 그린다. 사진을 들고 있지 않으므로(개수만 표시) blob URL
+   * 해제를 신경 쓸 필요가 없고, 매 redraw마다 통째로 지우고 다시 그려도 싸다.
+   * 클릭하면 그 클러스터가 담은 노트들의 bounds로 확대한다 — 확대하면
+   * 다음 redraw에서 화면 픽셀 거리가 벌어져 자연히 개별 핀으로 갈라진다.
+   */
+  function addClusterPin(notes) {
+    const box = document.createElement('div')
+    box.className = 'note-cluster'
+    box.textContent = notes.length > 99 ? '99+' : String(notes.length)
+
+    const center = notes.reduce((acc, n) => [acc[0] + n.lat, acc[1] + n.lng], [0, 0])
+    center[0] /= notes.length
+    center[1] /= notes.length
+
+    const marker = L.marker(center, {
+      icon: L.divIcon({ html: box, className: '', iconSize: [36, 36], iconAnchor: [18, 18] }),
+      title: `사진 ${notes.length}장`,
+      riseOnHover: true,
+      zIndexOffset: 1100, // 개별 노트 핀(1000)보다 위
+    }).addTo(noteGroup)
+
+    marker.on('click', () => {
+      fitBounds(L.latLngBounds(notes.map((n) => [n.lat, n.lng])), {
+        maxZoom: Math.min(map.getZoom() + 3, 18),
+      })
+    })
+    clusterMarkers.push(marker)
+  }
+
+  function clearClusterPins() {
+    for (const m of clusterMarkers) noteGroup.removeLayer(m)
+    clusterMarkers.length = 0
+  }
+
+  /**
+   * 현재 화면 범위에 드는 노트만 그린다. 가까이 모인 핀은 클러스터로 묶는다.
+   *
+   * 사진이 몇 장뿐일 때는(≥ 90개 코스, 실제로는 훨씬 적다) 굳이 묶을 일이
+   * 없지만, 한 지점에 여러 장을 등록하면(같은 정상, 같은 전망대) 핀이 겹쳐
+   * 뒤에 있는 사진을 클릭할 수 없게 된다. 화면 픽셀 거리 기준으로 묶으면
+   * 줌 레벨과 무관하게 "겹쳐 보이는 것"만 묶인다.
+   */
   function redrawNotePins() {
-    if (!noteSource.length) {
+    clearClusterPins()
+    if (!notesVisible || !noteSource.length) {
       for (const id of [...notePins.keys()]) removeNotePin(id)
+      lastCandidateCount = 0
       return
     }
+
     // 화면을 살짝 넘겨 그려두면 조금 움직였을 때 핀이 깜빡이지 않는다
     const bounds = map.getBounds().pad(0.25)
-    const wanted = new Set()
-    let count = 0
+    const candidates = []
     for (const n of noteSource) {
-      if (count >= MAX_PINS) break
-      if (!bounds.contains([n.lat, n.lng])) continue
-      wanted.add(n.id)
-      count++
-      if (!notePins.has(n.id)) addNotePin(n)
+      if (candidates.length >= MAX_CANDIDATES) break
+      if (bounds.contains([n.lat, n.lng])) candidates.push(n)
+    }
+    lastCandidateCount = candidates.length
+
+    // 화면 좌표로 그리디 클러스터링. 후보가 MAX_CANDIDATES로 상한이 있어 O(n²)여도 무겁지 않다.
+    const pts = candidates.map((n) => ({ n, p: map.latLngToContainerPoint([n.lat, n.lng]) }))
+    const used = new Array(pts.length).fill(false)
+    const wanted = new Set()
+
+    for (let i = 0; i < pts.length; i++) {
+      if (used[i]) continue
+      const group = [pts[i]]
+      used[i] = true
+      for (let j = i + 1; j < pts.length; j++) {
+        if (!used[j] && pts[i].p.distanceTo(pts[j].p) <= CLUSTER_PX) {
+          group.push(pts[j])
+          used[j] = true
+        }
+      }
+      if (group.length === 1) {
+        const n = group[0].n
+        wanted.add(n.id)
+        if (!notePins.has(n.id)) addNotePin(n)
+      } else {
+        addClusterPin(group.map((g) => g.n))
+      }
     }
     for (const id of [...notePins.keys()]) if (!wanted.has(id)) removeNotePin(id)
   }
@@ -360,9 +433,19 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
       redrawNotePins()
     },
 
-    /** 지금 그려진 핀 수 / 전체 (상태 표시용) */
+    /** 지금 화면에 표시된(개별 핀 + 클러스터에 묶인) 노트 수 / 전체 (상태 표시용) */
     notePinStats() {
-      return { drawn: notePins.size, total: noteSource.length }
+      return { drawn: lastCandidateCount, total: noteSource.length, clusters: clusterMarkers.length }
+    },
+
+    /** 지도 위 사진 핀을 전부 껐다/켰다 한다. 목록은 영향받지 않는다. */
+    setNotesVisible(v) {
+      notesVisible = v
+      redrawNotePins()
+    },
+
+    get notesVisible() {
+      return notesVisible
     },
 
     /** 노트 핀 하나를 강제로 올린다 (범위 계산과 무관하게). */
@@ -375,7 +458,9 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
     clearNotePins() {
       noteSource = []
+      lastCandidateCount = 0
       for (const id of [...notePins.keys()]) removeNotePin(id)
+      clearClusterPins()
     },
 
     /**

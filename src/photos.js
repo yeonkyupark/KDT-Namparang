@@ -13,10 +13,6 @@
  * 지연 로딩되는 청크라 11KB 차이는 감수할 만하다.
  */
 
-/** 저장할 최대 변 길이(px)와 JPEG 품질. 1장 약 150KB. */
-const MAX_EDGE = 1280
-const QUALITY = 0.75
-
 /** 목록·지도 핀에 쓰는 썸네일. 약 20KB. */
 const THUMB_EDGE = 256
 const THUMB_QUALITY = 0.7
@@ -229,17 +225,18 @@ function scaleTo(src, maxEdge, quality) {
 }
 
 /**
- * 원본을 저장용 크기와 썸네일로 줄인다.
+ * 원본은 그대로 두고, 목록·지도 핀에 쓸 작은 썸네일만 만든다.
  *
- * 원본은 보관하지 않는다. 요즘 휴대폰 사진은 장당 3~5MB인데,
- * 90개 코스를 기록하면 저장소 용량이 곧 한도에 닿는다.
+ * 원래는 저장용 사본도 1280px로 줄여 다시 인코딩했다. 그런데 사용자가
+ * 등록 전에 이미 사진을 정리·리사이즈해 두므로, 앱이 한 번 더 압축하면
+ * 화질만 떨어뜨릴 뿐이다. 출력은 원본 크기 그대로여야 한다는 요구사항이라
+ * `full`은 원본 File을 그대로 돌려준다 — 재인코딩도, 용량 절감도 없다.
  */
 export async function processImage(file) {
   const src = await loadBitmap(file)
   try {
-    const full = await scaleTo(src, MAX_EDGE, QUALITY)
     const thumb = await scaleTo(src, THUMB_EDGE, THUMB_QUALITY)
-    return { full: full.blob, thumb: thumb.blob, width: full.width, height: full.height }
+    return { full: file, thumb: thumb.blob, width: src.width, height: src.height }
   } finally {
     src.close?.()
   }

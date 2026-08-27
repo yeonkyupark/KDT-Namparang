@@ -153,6 +153,38 @@ export function createSync(getSettings) {
   }
 
   /**
+   * 토큰 없이 공개 저장소의 최신 기록을 받아온다.
+   *
+   * `run()`은 사진 업로드·notes.json 쓰기가 있어 토큰이 필수다. 하지만 **읽기는
+   * 토큰이 필요 없다** — 리포가 공개면 raw.githubusercontent.com 이 누구에게나
+   * 열려 있다(`github.js`의 `readJson` 참조). 방문자가 토큰 없이도 이미 동기화된
+   * 사진·메모를 볼 수 있어야 하므로, 로딩 시 이 함수를 호출해 조용히 병합한다.
+   *
+   * 병합 규칙은 `run()`의 3단계(원격→로컬)와 같다: `updatedAt` 늦은 쪽이 이기고,
+   * 사진 Blob 은 내리지 않는다(원격 raw URL 로 표시).
+   *
+   * @returns {Promise<{pulled: number}>}
+   */
+  async function pullPublic() {
+    const s = getSettings()
+    if (!s.owner || !s.repo) return { pulled: 0 }
+
+    const reader = createClient({ owner: s.owner, repo: s.repo, branch: s.branch })
+    const remote = await reader.readJson(NOTES_PATH).catch(() => null)
+    if (!remote?.notes?.length) return { pulled: 0 }
+
+    let pulled = 0
+    const localById = new Map((await allNotesRaw()).map((n) => [n.id, n]))
+    for (const r of remote.notes) {
+      const mine = localById.get(r.id)
+      if (mine && (mine.updatedAt ?? '') >= (r.updatedAt ?? '')) continue
+      await putNoteRaw({ ...(mine ?? {}), ...r, thumb: mine?.thumb ?? null })
+      pulled++
+    }
+    return { pulled }
+  }
+
+  /**
    * 로컬 → 원격 → 로컬 한 바퀴.
    * @returns {Promise<{pushed:number, pulled:number, photos:object}>}
    */
@@ -242,6 +274,7 @@ export function createSync(getSettings) {
 
   return {
     run,
+    pullPublic,
     onState: (fn) => {
       listeners.add(fn)
       return () => listeners.delete(fn)
