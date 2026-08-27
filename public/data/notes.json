@@ -1,6 +1,6 @@
 {
  "version": 1,
- "updatedAt": "2026-08-27T06:13:18.623Z",
+ "updatedAt": "2026-08-27T06:25:02.216Z",
  "notes": [
   {
    "id": "10d95a46-9cb7-4aca-9436-e7bcc9a81b66",
@@ -37,6 +37,27 @@
     "thumb": "2026/6a4992cb-e0d8-4389-9156-622951444d1c_t.jpg",
     "fullUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/2026/6a4992cb-e0d8-4389-9156-622951444d1c.jpg",
     "thumbUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/2026/6a4992cb-e0d8-4389-9156-622951444d1c_t.jpg"
+   }
+  },
+  {
+   "id": "eab01ba4-a871-43ee-a1bc-ab9c401bcb79",
+   "lat": 35.09971099972223,
+   "lng": 129.1236541,
+   "courseId": "1",
+   "takenAt": "2026-05-01T02:15:15.000Z",
+   "createdAt": "2026-08-27T06:24:51.252Z",
+   "updatedAt": "2026-08-27T06:24:51.252Z",
+   "title": "코리아 둘레길 시작지점",
+   "memo": "해파랑길, 남파랑길 시작지점. 오른쪽은 해파랑길, 왼쪽은 남파랑길.",
+   "rating": 0,
+   "locationSource": "exif",
+   "address": "",
+   "deleted": false,
+   "photo": {
+    "full": "namparang/2026/eab01ba4-a871-43ee-a1bc-ab9c401bcb79.jpg",
+    "thumb": "namparang/2026/eab01ba4-a871-43ee-a1bc-ab9c401bcb79_t.jpg",
+    "fullUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/namparang/2026/eab01ba4-a871-43ee-a1bc-ab9c401bcb79.jpg",
+    "thumbUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/namparang/2026/eab01ba4-a871-43ee-a1bc-ab9c401bcb79_t.jpg"
    }
   }
  ]
