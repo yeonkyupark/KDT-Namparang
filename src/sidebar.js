@@ -19,6 +19,7 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
   const maxSeq = Math.max(...main.map((c) => c.seq))
 
   const panel = el('aside', 'panel')
+  panel.id = 'sidepanel' // 상단바 접기 버튼의 aria-controls 대상
 
   // ── 손잡이 (모바일 전용) ─────────────────────────────
   const handle = el('button', 'sheet-handle')

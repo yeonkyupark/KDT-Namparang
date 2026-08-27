@@ -30,6 +30,11 @@ function renderShell() {
 
   const header = el('header', 'topbar')
 
+  const sideBtn = el('button', 'icon-btn')
+  sideBtn.type = 'button'
+  sideBtn.setAttribute('aria-controls', 'sidepanel')
+  header.append(sideBtn)
+
   const brand = el('div', 'brand')
   brand.append(el('b', null, '남파랑길'))
   brand.append(el('span', 'brand-sub', '부산 오륙도 → 해남 땅끝탑'))
@@ -50,7 +55,7 @@ function renderShell() {
   stage.append(mapwrap)
 
   app.append(header, stage)
-  return { header, tileGroup, tools, stage, mapwrap, mapEl }
+  return { header, tileGroup, tools, stage, mapwrap, mapEl, sideBtn }
 }
 
 function renderInfoCard(host, course) {
@@ -124,7 +129,7 @@ async function main() {
   configureDifficulty(meta.difficulty?.breaks)
 
   const byId = new Map(courses.map((c) => [c.id, c]))
-  const { tileGroup, tools, stage, mapwrap, mapEl } = renderShell()
+  const { tileGroup, tools, stage, mapwrap, mapEl, sideBtn } = renderShell()
 
   /**
    * fitBounds가 피해야 하는 영역.
@@ -239,7 +244,6 @@ async function main() {
     mapwrap.classList.toggle('no-profile', !profOpen)
     profBtn.classList.toggle('is-on', profOpen)
     profBtn.setAttribute('aria-pressed', String(profOpen))
-    view.map.invalidateSize()
   }
   profBtn.onclick = () => {
     profOpen = !profOpen
@@ -252,7 +256,36 @@ async function main() {
   fitBtn.onclick = () => view.fitAll()
   tools.append(fitBtn)
 
+  // ── 사이드바 접기 ────────────────────────────────────
+  // 화면 상태가 아니라 개인 취향이므로 URL이 아니라 localStorage 에 둔다.
+  // (URL은 공유용이다 — 남에게 보낸 링크가 내 패널 상태까지 강제하면 안 된다)
+  const SIDE_KEY = 'namparang.sidebar'
+  let sideOpen = true
+  try {
+    sideOpen = localStorage.getItem(SIDE_KEY) !== 'closed'
+  } catch {
+    // 시크릿 모드 등에서 접근 자체가 막힐 수 있다. 기본값으로 간다.
+  }
+
+  const syncSide = () => {
+    document.querySelector('.shell').classList.toggle('side-closed', !sideOpen)
+    sideBtn.textContent = sideOpen ? '◀' : '▶'
+    sideBtn.title = sideOpen ? '사이드 메뉴 접기' : '사이드 메뉴 펼치기'
+    sideBtn.setAttribute('aria-label', sideBtn.title)
+    sideBtn.setAttribute('aria-expanded', String(sideOpen))
+  }
+  sideBtn.onclick = () => {
+    sideOpen = !sideOpen
+    syncSide()
+    try {
+      localStorage.setItem(SIDE_KEY, sideOpen ? 'open' : 'closed')
+    } catch {
+      // 저장이 막혀도 이번 세션에서는 정상 동작한다
+    }
+  }
+
   // ── 초기 상태 반영 ───────────────────────────────────
+  syncSide()
   syncProf()
   view.setTile(layer)
   sidebar.setRange(initial.from, initial.to, { notify: false })

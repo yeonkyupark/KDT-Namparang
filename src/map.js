@@ -119,6 +119,11 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     rendered.set(c.id, rec)
   }
 
+  // 사이드바 접기, 고도 프로필 접기, 창 크기 변경 — 지도 컨테이너 크기가 바뀌는
+  // 경로가 여러 개다. 그때마다 invalidateSize()를 부르는 대신 한곳에서 관찰한다.
+  // (부르지 않으면 Leaflet이 옛 크기를 기준으로 타일과 좌표를 계산해 지도가 어긋난다)
+  new ResizeObserver(() => map.invalidateSize({ animate: false })).observe(el)
+
   // 시작점 마커 90개를 전국 줌에서 원래 크기로 두면 코스 선을 덮어버려
   // 경로가 점선처럼 보인다. 줌에 따라 크기를 줄인다.
   function syncMarkerSize() {

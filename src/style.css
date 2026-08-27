@@ -57,7 +57,13 @@ body {
   display: grid;
   grid-template-columns: var(--panel-w) 1fr;
   min-height: 0;
+  transition: grid-template-columns .2s ease;
 }
+
+/* 사이드바 접힘. 폭을 0으로 만들고 패널은 overflow:hidden 으로 내용을 가둔다.
+   지도 크기 변화는 map.js 의 ResizeObserver 가 invalidateSize 로 처리한다. */
+.shell.side-closed .stage { grid-template-columns: 0 1fr; }
+.shell.side-closed .panel { border-right-width: 0; }
 
 /* 배치를 명시한다. 사이드바는 지도보다 나중에 DOM에 붙으므로
    자동 배치에 맡기면 지도가 1열(사이드바 자리)로 들어가 좌우가 뒤집힌다. */
@@ -153,6 +159,23 @@ body {
 
 .tools { display: flex; align-items: center; gap: .5rem; flex: 0 0 auto; }
 
+.icon-btn {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: .7rem;
+  line-height: 1;
+  color: var(--fg-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 
 .seg-btn, .ghost-btn, .reset-btn {
@@ -175,6 +198,8 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   background: var(--panel);
   border-right: 1px solid var(--line);
   z-index: 500;
@@ -397,6 +422,10 @@ body {
 
 @media (max-width: 860px) {
   .brand-sub { display: none; }
+
+  /* 좁은 화면에서는 시트 손잡이가 접기를 담당한다. 버튼이 둘이면 헷갈린다. */
+  .icon-btn { display: none; }
+  .shell.side-closed .stage { grid-template-columns: 1fr; }
   .seg-btn, .ghost-btn { padding: .3rem .5rem; font-size: .78rem; }
 
   /* 시트를 지도 위에 띄우지 않고 그리드 행으로 넣는다.
