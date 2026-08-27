@@ -153,6 +153,31 @@ export function createClient(cfg) {
       return this.putFile(path, await blobToBase64(blob), opts)
     },
 
+    /**
+     * 브랜치의 전체 파일 경로 목록. 요청 1회로 리포에 뭐가 있는지 다 안다.
+     *
+     * 사진 존재 확인을 파일마다 `headSha` 로 하면 N회 요청이 되고, raw 는
+     * 5분 캐시라 방금 지워진 파일을 아직 있다고 답한다. 트리는 즉시 정확하다.
+     *
+     * @returns {Promise<Set<string>|null>} 경로 집합. 리포가 비었거나
+     *          항목이 10만개를 넘어 잘렸으면 null (= 판단 보류).
+     */
+    async listPaths() {
+      try {
+        const r = await api(
+          `/repos/${cfg.owner}/${cfg.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+        )
+        if (r?.truncated) return null
+        return new Set((r?.tree ?? []).filter((t) => t.type === 'blob').map((t) => t.path))
+      } catch (e) {
+        // 파일이 하나도 없는 브랜치는 빈 트리(4b825dc6…)를 가리키는데, GitHub 은
+        // 그 트리를 객체로 저장하지 않아 404 를 준다. 커밋 이력이 있어도 마찬가지다.
+        // 빈 리포(409)도 같은 뜻이다. 둘 다 "파일 없음"이 확실하므로 빈 집합.
+        if (e.status === 404 || e.status === 409) return new Set()
+        throw e
+      }
+    },
+
     /** 파일이 이미 있으면 건너뛴다. 사진은 한 번 올리면 바뀌지 않는다. */
     async putBlobIfAbsent(path, blob, message) {
       const sha = await this.headSha(path)

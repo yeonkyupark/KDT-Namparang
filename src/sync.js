@@ -95,8 +95,41 @@ export function createSync(getSettings) {
 
     let uploaded = 0
     let skipped = 0
+    let restored = 0
+    let orphaned = 0
+
+    // 리포에 실제로 뭐가 있는지 요청 1회로 확인한다.
+    //
+    // `n.photo` 가 있으면 올렸다는 뜻이지만, 그 파일이 지금도 있다는 보장은 없다.
+    // GitHub 웹에서 지우거나 다른 정리 작업이 지나가면 notes.json 은 없는 파일을
+    // 가리킨 채로 남고, 예전 코드는 `n.photo` 가 있으면 건너뛰어 영구히 복구되지
+    // 않았다. 실제로 이 리포에서 그 일이 일어났다 (PLAN.md 6c 참조).
+    let present = null
+    try {
+      present = await photosClient.listPaths()
+    } catch {
+      // 목록을 못 얻으면 복구 판정을 하지 않는다. 신규 업로드는 그대로 진행.
+      present = null
+    }
+
     for (const n of notes) {
-      if (n.deleted || n.photo) continue
+      if (n.deleted) continue
+
+      if (n.photo) {
+        // 목록을 못 얻었거나 파일이 멀쩡하면 건드리지 않는다.
+        if (!present) continue
+        const gone = [n.photo.full, n.photo.thumb].filter((x) => x && !present.has(x))
+        if (!gone.length) continue
+
+        // 원격에서 사라졌다. 로컬 원본이 남아 있으면 다시 올린다.
+        if (!(await getPhoto(n.id)) || !n.thumb) {
+          orphaned++ // 로컬에도 없다 — 이 사진은 되살릴 수 없다
+          continue
+        }
+        delete n.photo // 아래 신규 업로드 경로를 다시 타게 한다
+        restored++
+      }
+
       const full = await getPhoto(n.id)
       if (!full || !n.thumb) continue
 
@@ -116,7 +149,7 @@ export function createSync(getSettings) {
       }
       await putNoteRaw(n)
     }
-    return { uploaded, skipped, missing: 0 }
+    return { uploaded, skipped, restored, orphaned, missing: 0 }
   }
 
   /**

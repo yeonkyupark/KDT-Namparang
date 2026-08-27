@@ -170,7 +170,15 @@ export function createNotes({ host, view, courses, sync }) {
         if (st.pushed) bits.push(`올림 ${st.pushed}`)
         if (st.pulled) bits.push(`내림 ${st.pulled}`)
         if (st.photos?.uploaded) bits.push(`사진 ${st.photos.uploaded}장`)
+        if (st.photos?.restored) bits.push(`사진 복구 ${st.photos.restored}장`)
         setSyncMsg(bits.length ? `완료 · ${bits.join(' · ')}` : '변경 없음', 'ok')
+        // 원격에서 사라졌고 로컬 원본도 없는 사진은 되살릴 수 없다. 조용히 넘기지 않는다.
+        if (st.photos?.orphaned) {
+          setSyncMsg(
+            `완료 · 사진 ${st.photos.orphaned}장은 원격·로컬 모두에 없어 복구할 수 없습니다`,
+            'bad',
+          )
+        }
         await load() // 내려받은 노트를 화면에 반영
       } else if (st.phase === 'error') {
         syncBtn.disabled = false
