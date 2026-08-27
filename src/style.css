@@ -648,9 +648,10 @@ body {
   transform: translateX(-50%);
   z-index: 600;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: .7rem;
-  max-width: calc(100% - 1.5rem);
+  gap: .4rem .7rem;
+  width: min(26rem, calc(100% - 1.5rem));
   padding: .5rem .7rem;
   background: var(--panel);
   border: 1px solid var(--accent);
@@ -676,6 +677,29 @@ body {
 .pick-gps:disabled { opacity: .6; cursor: default; }
 /* 촬영 시각이 15분 이내면 이 버튼이 정답일 확률이 높다 — 살짝 강조한다 */
 .pick-gps.is-suggested { box-shadow: 0 0 0 2px var(--accent-soft); }
+
+/* 좌표/주소 직접 입력. flex: 1 0 100% 로 항상 자기 줄을 차지한다. */
+.pick-manual {
+  flex: 1 0 100%;
+  display: flex;
+  gap: .4rem;
+}
+.pick-manual input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: .8rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .3rem .5rem;
+}
+.pick-manual .btn {
+  flex: 0 0 auto;
+  font-size: .78rem;
+  padding: .3rem .6rem;
+}
 
 .pick-cancel {
   flex: 0 0 auto;

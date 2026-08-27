@@ -313,6 +313,20 @@ export function createNotes({ host, view, courses, sync }) {
     return null
   }
 
+  /**
+   * "35.0997, 129.1236" 같은 문자열을 좌표로 읽는다. 콤마·공백 구분 모두 받는다.
+   * 범위를 벗어나면(위도 ±90, 경도 ±180) 좌표가 아니라 주소로 취급한다.
+   */
+  function parseLatLng(text) {
+    const m = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/.exec(text)
+    if (!m) return null
+    const lat = Number(m[1])
+    const lng = Number(m[2])
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
+    return [lat, lng]
+  }
+
   /** 촬영 시각이 지금으로부터 이 시간(ms) 이내면 "방금 찍은 사진"으로 본다. */
   const RECENT_MS = 15 * 60 * 1000
 
@@ -346,11 +360,16 @@ export function createNotes({ host, view, courses, sync }) {
     }
     // 주소로 지역을 알아낼 수 있으면 지도를 먼저 그쪽으로 옮긴다.
     // 전국 축척에서 클릭하게 두면 정밀도가 km 단위로 떨어진다.
-    const matched = matchAddress(exif.address)
-    if (matched) {
+    const matchHint = el('span', 'pick-hint')
+    banner.append(matchHint)
+    /** @returns {boolean} 일치하는 코스가 있어 지도를 옮겼는지 */
+    function applyMatch(matched) {
+      if (!matched) return false
       view.fitIds(matched.ids)
-      banner.append(el('span', 'pick-hint', `지도 이동: ${matched.label}`))
+      matchHint.textContent = `지도 이동: ${matched.label} — 이제 지도를 클릭하세요`
+      return true
     }
+    if (exif.address) applyMatch(matchAddress(exif.address))
 
     const takenRecently =
       exif.takenAt && Date.now() - new Date(exif.takenAt).getTime() <= RECENT_MS
@@ -362,8 +381,39 @@ export function createNotes({ host, view, courses, sync }) {
     gpsBtn.type = 'button'
     banner.append(gpsBtn)
     banner.append(
-      el('span', 'pick-hint', '사진을 방금 찍었다면 정확합니다. 예전 사진이면 지도를 클릭하세요.'),
+      el('span', 'pick-hint', '사진을 방금 찍었다면 정확합니다. 예전 사진이면 아래 좌표/주소를 입력하거나 지도를 클릭하세요.'),
     )
+
+    // ── 좌표 또는 주소 직접 입력 ──────────────────────────
+    // 외부 지오코딩 서비스는 쓰지 않는다. 좌표는 그대로 쓰고, 주소는
+    // matchAddress()로 우리 90개 코스의 지점명·지역과 맞춰 지도만 옮긴다 —
+    // 정확한 지점은 여전히 지도 클릭으로 짚는다.
+    const manualRow = el('div', 'pick-manual')
+    const manualIn = document.createElement('input')
+    manualIn.type = 'text'
+    manualIn.placeholder = '좌표(35.0997, 129.1236) 또는 주소'
+    manualIn.autocomplete = 'off'
+    const manualBtn = el('button', 'btn', '적용')
+    manualBtn.type = 'button'
+    manualRow.append(manualIn, manualBtn)
+    banner.append(manualRow)
+
+    const submitManual = () => {
+      const value = manualIn.value.trim()
+      if (!value) return
+      const coords = parseLatLng(value)
+      if (coords) {
+        finishOnce(coords, 'manual')
+        return
+      }
+      if (!applyMatch(matchAddress(value))) {
+        toast(`"${value}"와 일치하는 코스 지점을 찾지 못했습니다`)
+      }
+    }
+    manualBtn.onclick = submitManual
+    manualIn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitManual()
+    })
 
     const cancel = el('button', 'pick-cancel', '취소')
     cancel.type = 'button'
@@ -463,9 +513,12 @@ export function createNotes({ host, view, courses, sync }) {
     const infoBits = []
     if (draft.takenAt) infoBits.push(`촬영 ${fmtDate(draft.takenAt)}`)
     infoBits.push(
-      { exif: '위치: 사진 EXIF', gps: '위치: 현재 위치', map: '위치: 지도 지정' }[
-        draft.locationSource
-      ] ?? '위치: 지도 지정',
+      {
+        exif: '위치: 사진 EXIF',
+        gps: '위치: 현재 위치',
+        map: '위치: 지도 지정',
+        manual: '위치: 좌표 직접입력',
+      }[draft.locationSource] ?? '위치: 지도 지정',
     )
     if (near) infoBits.push(`코스에서 ${Math.round(near.distM)}m`)
     meta.append(el('div', 'form-info', infoBits.join(' · ')))
