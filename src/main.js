@@ -192,6 +192,13 @@ async function main() {
     writeState({ from, to, layer }, opts)
     profile.setSegments(profileSegments(from, to))
 
+    // 구간이 바뀌면 열려 있던 정보 카드가 옛 코스를 그대로 들고 있게 된다.
+    // 새 구간의 시작 코스로 갱신한다. (카드가 닫혀 있으면 굳이 열지 않는다)
+    if (document.querySelector('.infocard')) {
+      const head = courses.find((c) => !c.isAlt && c.seq === from)
+      if (head) renderInfoCard(mapwrap, head)
+    }
+
     const token = ++applyToken
     if (ids.size > DETAIL_LIMIT) return
 
