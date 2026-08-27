@@ -2,14 +2,17 @@ import './style.css'
 import { loadIndex, loadMeta, loadCourse } from './data.mjs'
 import { createMap, TILE_NAMES, formatDuration } from './map.js'
 import { createSidebar } from './sidebar.js'
+import { createProfile } from './profile.js'
 import { readState, writeState } from './state.js'
 import { configureDifficulty } from './metrics.js'
+import { cumulative, pointAtFraction } from './geo.js'
 
 /**
- * 선택 구간이 이 개수 이하일 때만 상세 라인을 받아 선을 고해상도로 교체한다.
+ * 선택 구간이 이 개수 이하일 때만 상세 라인·고도를 받는다.
  *
  * 상세 파일은 코스당 8KB다. 90개 전 구간을 고르면 745KB인데, 그 줌에서는
- * 오버뷰(코스당 43점)와 눈으로 구분되지 않는다. 확대해서 볼 만한 구간에서만 받는다.
+ * 오버뷰(코스당 43점)와 눈으로 구분되지 않고 프로필도 픽셀당 1.8km라
+ * `eleLow`(코스당 32점)로 충분하다. 확대해서 볼 만한 구간에서만 받는다.
  */
 const DETAIL_LIMIT = 30
 
@@ -40,15 +43,17 @@ function renderShell() {
   header.append(tools)
 
   const stage = el('div', 'stage')
+  const mapwrap = el('div', 'mapwrap')
   const mapEl = el('div', 'map')
   mapEl.id = 'map'
-  stage.append(mapEl)
+  mapwrap.append(mapEl)
+  stage.append(mapwrap)
 
   app.append(header, stage)
-  return { header, tileGroup, tools, stage, mapEl }
+  return { header, tileGroup, tools, stage, mapwrap, mapEl }
 }
 
-function renderInfoCard(stage, course) {
+function renderInfoCard(host, course) {
   document.querySelector('.infocard')?.remove()
 
   const card = el('div', 'infocard')
@@ -92,7 +97,7 @@ function renderInfoCard(stage, course) {
   if (course.note) card.append(el('div', 'ic-note', course.note))
   card.append(el('div', 'ic-foot', '고도는 DEM 추정값 · 소요시간은 계산값'))
 
-  stage.append(card)
+  host.append(card)
 }
 
 function renderError(message) {
@@ -118,30 +123,60 @@ async function main() {
 
   configureDifficulty(meta.difficulty?.breaks)
 
-  const { tileGroup, tools, stage, mapEl } = renderShell()
+  const byId = new Map(courses.map((c) => [c.id, c]))
+  const { tileGroup, tools, stage, mapwrap, mapEl } = renderShell()
 
   /**
-   * fitBounds가 피해야 하는 화면 영역.
-   * 넓은 화면은 사이드바가 왼쪽(그리드로 분리되어 있어 지도를 가리지 않음),
-   * 좁은 화면은 하단 시트가 지도를 덮는다.
+   * fitBounds가 피해야 하는 영역.
+   * 사이드바(넓은 화면)와 하단 시트(좁은 화면) 모두 그리드로 분리되어 있어
+   * 지도를 덮지 않는다. 남는 건 Leaflet 컨트롤과 attribution 정도다.
    */
-  const getInsets = () => {
-    if (window.innerWidth >= 861) return { left: 24, top: 20, right: 24, bottom: 40 }
-    const sheetH = document.querySelector('.panel')?.offsetHeight ?? 0
-    return { left: 12, top: 12, right: 12, bottom: sheetH + 20 }
-  }
+  const getInsets = () => ({ left: 24, top: 20, right: 24, bottom: 34 })
 
   const view = createMap(mapEl, courses, {
     getInsets,
-    onSelect: (c) => renderInfoCard(stage, c),
+    onSelect: (c) => renderInfoCard(mapwrap, c),
   })
 
+  // ── 고도 프로필 ──────────────────────────────────────
+  /** 지도 커서를 놓을 좌표를 구하기 위한, 코스별 폴리라인 + 누적거리 캐시 */
+  const lineCache = new Map()
+
+  function lineFor(id) {
+    if (!lineCache.has(id)) {
+      const rec = view.rendered.get(id)
+      const pts = rec?.detail ?? byId.get(id)?.overview ?? []
+      lineCache.set(id, { pts, cum: cumulative(pts) })
+    }
+    return lineCache.get(id)
+  }
+
+  const profile = createProfile(mapwrap, {
+    onHover: (s) => {
+      if (!s) return view.setCursor(null)
+      const { pts, cum } = lineFor(s.courseId)
+      const p = pointAtFraction(pts, cum, s.frac)
+      view.setCursor(p)
+    },
+  })
+
+  // ── 구간 적용 ────────────────────────────────────────
   const maxSeq = Math.max(...courses.filter((c) => !c.isAlt).map((c) => c.seq))
   const opts = { maxSeq, tiles: TILE_NAMES }
   const initial = readState(opts)
   let layer = initial.layer
 
-  // ── 구간 적용 ────────────────────────────────────────
+  /** 프로필은 본 코스만 이어 붙인다. 임시노선은 경로를 두 번 세게 만든다. */
+  function profileSegments(from, to) {
+    return courses
+      .filter((c) => !c.isAlt && c.seq >= from && c.seq <= to)
+      .sort((a, b) => a.seq - b.seq)
+      .map((c) => {
+        const detail = view.rendered.get(c.id)?.eleDetail
+        return { course: c, ele: detail ?? c.eleLow ?? [], lengthM: c.distanceM }
+      })
+  }
+
   let applyToken = 0
 
   async function applyRange({ from, to }, { fit = true } = {}) {
@@ -150,16 +185,21 @@ async function main() {
     if (fit) view.fitIds(ids)
 
     writeState({ from, to, layer }, opts)
+    profile.setSegments(profileSegments(from, to))
 
-    // 상세 라인은 뒤늦게 도착해도 되므로 await 하지 않고 흘려보낸다.
     const token = ++applyToken
-    const targets = [...ids]
-    if (targets.length > DETAIL_LIMIT) return
+    if (ids.size > DETAIL_LIMIT) return
 
-    for (const id of targets) {
+    // 상세는 뒤늦게 도착해도 되므로 await 하지 않는다.
+    for (const id of ids) {
       loadCourse(id)
         .then((d) => {
-          if (token === applyToken) view.upgradeToDetail(id, d.line)
+          if (token !== applyToken) return
+          view.upgradeToDetail(id, d.line)
+          lineCache.delete(id) // 상세 라인으로 커서 정확도가 올라간다
+          const rec = view.rendered.get(id)
+          if (rec) rec.eleDetail = d.ele?.values
+          profile.setSegments(profileSegments(from, to))
         })
         .catch(() => {}) // 상세는 있으면 좋은 것이다. 실패해도 오버뷰로 동작한다.
     }
@@ -168,7 +208,7 @@ async function main() {
   const sidebar = createSidebar(stage, courses, {
     onRangeChange: (r) => applyRange(r),
     onPick: (c) => {
-      renderInfoCard(stage, c)
+      renderInfoCard(mapwrap, c)
       view.focus(c.id)
       sidebar.collapse()
     },
@@ -190,17 +230,34 @@ async function main() {
     return b
   })
 
+  // ── 고도 프로필 접기 ─────────────────────────────────
+  const profBtn = el('button', 'ghost-btn is-on', '고도')
+  profBtn.type = 'button'
+  profBtn.setAttribute('aria-pressed', 'true')
+  let profOpen = window.innerWidth >= 861 // 좁은 화면은 자리가 없어 기본 접힘
+  const syncProf = () => {
+    mapwrap.classList.toggle('no-profile', !profOpen)
+    profBtn.classList.toggle('is-on', profOpen)
+    profBtn.setAttribute('aria-pressed', String(profOpen))
+    view.map.invalidateSize()
+  }
+  profBtn.onclick = () => {
+    profOpen = !profOpen
+    syncProf()
+  }
+  tools.append(profBtn)
+
   const fitBtn = el('button', 'ghost-btn', '전체보기')
   fitBtn.type = 'button'
   fitBtn.onclick = () => view.fitAll()
   tools.append(fitBtn)
 
   // ── 초기 상태 반영 ───────────────────────────────────
+  syncProf()
   view.setTile(layer)
   sidebar.setRange(initial.from, initial.to, { notify: false })
   await applyRange({ from: initial.from, to: initial.to })
 
-  // 브라우저 뒤로/앞으로
   window.addEventListener('popstate', () => {
     const s = readState(opts)
     layer = s.layer

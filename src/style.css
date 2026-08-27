@@ -62,9 +62,71 @@ body {
 /* 배치를 명시한다. 사이드바는 지도보다 나중에 DOM에 붙으므로
    자동 배치에 맡기면 지도가 1열(사이드바 자리)로 들어가 좌우가 뒤집힌다. */
 .stage > .panel { grid-area: 1 / 1; }
-.stage > .map { grid-area: 1 / 2; }
+.stage > .mapwrap { grid-area: 1 / 2; }
 
-.map { width: 100%; height: 100%; background: var(--bg); }
+/* 지도 + 고도 프로필. 프로필은 지도를 덮지 않고 아래에 붙는다. */
+.mapwrap {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+}
+.mapwrap.no-profile { grid-template-rows: 1fr 0; }
+.mapwrap.no-profile .profile { display: none; }
+
+.map { width: 100%; height: 100%; min-height: 0; background: var(--bg); }
+
+/* ── 고도 프로필 ─────────────────────────────────────── */
+
+.profile {
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  padding: .35rem .6rem .2rem;
+}
+
+.pf-head {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  padding: 0 .1rem .1rem;
+}
+.pf-title {
+  color: var(--fg-dim);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  flex: 0 0 auto;
+}
+.pf-readout {
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-note { color: var(--fg-dim); font-size: .68rem; flex: 0 0 auto; }
+
+.pf-plot { width: 100%; height: 132px; cursor: crosshair; touch-action: pan-y; }
+.pf-svg { display: block; }
+
+.pf-grid { stroke: var(--line); stroke-width: 1; }
+.pf-sep { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.pf-area { fill: var(--accent); fill-opacity: .16; stroke: none; }
+.pf-line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+
+.pf-ylabel, .pf-xlabel, .pf-dist {
+  fill: var(--fg-dim);
+  font-size: 10px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.pf-xlabel { font-size: 9px; }
+
+.pf-cursor-line { stroke: var(--fg); stroke-width: 1; stroke-dasharray: 3 2; opacity: .6; }
+.pf-cursor-dot { fill: var(--fg); stroke: var(--panel); stroke-width: 1.5; }
 
 /* ── 상단바 ──────────────────────────────────────────── */
 
@@ -337,29 +399,24 @@ body {
   .brand-sub { display: none; }
   .seg-btn, .ghost-btn { padding: .3rem .5rem; font-size: .78rem; }
 
-  /* 시트가 지도 위에 떠 있으므로 지도는 전폭을 쓴다 */
-  .stage { grid-template-columns: 1fr; }
-  .stage > .map { grid-area: 1 / 1; }
+  /* 시트를 지도 위에 띄우지 않고 그리드 행으로 넣는다.
+     띄우면 (a) 고도 프로필을 완전히 덮고 (b) z-index 1000인 Leaflet
+     컨트롤이 시트 위로 올라와 내용이 잘린다. 행으로 두면 둘 다 사라진다. */
+  .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .stage > .mapwrap { grid-area: 1 / 1; }
+  .stage > .panel { grid-area: 2 / 1; }
+
+  /* 좁은 화면에서 프로필은 낮게 — 지도가 우선이다 */
+  .pf-plot { height: 104px; }
 
   .panel {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
     border-right: 0;
     border-top: 1px solid var(--line);
-    border-radius: 14px 14px 0 0;
-    box-shadow: 0 -2px 14px rgba(0, 0, 0, .18);
-    max-height: 82%;
-    transition: max-height .22s ease;
-    /* Leaflet 컨트롤 컨테이너는 z-index 1000 으로 시트 위에 그려진다.
-       attribution 은 표기 의무가 있으니 가리지 않고, 대신 시트 내용이
-       그 띠에 묻히지 않도록 아래 여백을 준다. */
-    padding-bottom: 1.15rem;
+    max-height: 72vh;
   }
-
-  /* 축척 바는 시트와 겹친다. 좁은 화면에서는 없어도 된다. */
-  .leaflet-control-scale { display: none; }
 
   .sheet-handle {
     display: flex;

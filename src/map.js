@@ -67,6 +67,9 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
   /** @type {Map<string, object>} id -> {casing, line, marker, course, on, detail} */
   const rendered = new Map()
 
+  /** 고도 프로필 hover 위치를 표시하는 마커. 필요할 때 만든다. */
+  let cursor = null
+
   for (const c of courses) {
     if (!c.overview?.length) continue
 
@@ -206,6 +209,31 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
       const base = (rec.on ? ON : OFF).weight
       rec.line.setStyle({ weight: on ? base + 3 : base })
       if (on) rec.line.bringToFront()
+    },
+
+    /**
+     * 고도 프로필에서 가리키는 지점을 지도에 표시한다.
+     * `latlng`가 null이면 지운다.
+     */
+    setCursor(latlng) {
+      if (!latlng) {
+        cursor?.remove()
+        cursor = null
+        return
+      }
+      if (!cursor) {
+        cursor = L.circleMarker(latlng, {
+          radius: 6,
+          color: '#ffffff',
+          weight: 2.5,
+          fillColor: '#111418',
+          fillOpacity: 1,
+          interactive: false,
+        }).addTo(map)
+        cursor.bringToFront()
+      } else {
+        cursor.setLatLng(latlng)
+      }
     },
 
     setTile(name) {

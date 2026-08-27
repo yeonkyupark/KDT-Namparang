@@ -65,6 +65,28 @@ function difficultyOf(km, ascentM) {
   return { score: r1(score), label: DIFFICULTY_BREAKS.find((b) => score <= b.max).label }
 }
 
+/**
+ * 고도 프로필의 저해상도 요약. courses.json 에 실어 보낸다.
+ *
+ * 전 구간(90개) 프로필을 그리려면 코스별 상세 파일 92개(745KB)가 필요하다.
+ * 하지만 1,464km를 800px에 그리면 픽셀당 1.8km라 32점이면 충분하다.
+ * 구간을 좁히면 상세 파일이 도착해 고해상도로 교체된다.
+ *
+ * 버킷 평균을 쓰므로 좁은 봉우리는 뭉개진다 — 개요용이라는 뜻이다.
+ */
+function lowResProfile(values, n = 32) {
+  if (values.length <= n) return values.map((v) => Math.round(v))
+  const out = []
+  for (let i = 0; i < n; i++) {
+    const a = Math.floor((i * values.length) / n)
+    const b = Math.max(a + 1, Math.floor(((i + 1) * values.length) / n))
+    let sum = 0
+    for (let j = a; j < b; j++) sum += values[j]
+    out.push(Math.round(sum / (b - a)))
+  }
+  return out
+}
+
 /** 네이스미스 규칙 변형. GPX <time> 은 편집 시각이라 쓰지 않는다. */
 function durationMin(km, ascentM) {
   const min = (km / WALK_SPEED_KMH) * 60 + (ascentM / ASCENT_SPEED_MH) * 60
@@ -178,6 +200,8 @@ function main() {
     startLatLng: c.startLatLng,
     endLatLng: c.endLatLng,
     overview: c.overview.map((p) => [r5(p[0]), r5(p[1])]),
+    // 전 구간 고도 프로필을 상세 파일 없이도 그릴 수 있게 하는 요약
+    eleLow: lowResProfile(c.eleProfile),
   }))
 
   writeFileSync(join(OUT_DIR, 'courses.json'), JSON.stringify(index))
