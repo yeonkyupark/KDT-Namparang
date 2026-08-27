@@ -68,6 +68,12 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
   /** @type {Map<string, {marker: L.Marker, url: string|null}>} 노트 핀 + 해제할 blob URL */
   const notePins = new Map()
 
+  /** 화면 범위 기반 핀 렌더링 상태 */
+  let noteSource = []
+  let noteClick = null
+  /** 한 화면에 이 개수를 넘으면 더 그리지 않는다. 지도가 점으로 뒤덮이는 것도 막는다. */
+  const MAX_PINS = 150
+
   /** @type {Map<string, object>} id -> {casing, line, marker, course, on, detail} */
   const rendered = new Map()
 
@@ -123,6 +129,76 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     rendered.set(c.id, rec)
   }
 
+  /**
+   * 노트 핀 하나를 그린다.
+   * 썸네일이 있으면 핀 자체를 작은 사진으로 만든다 — 지도만 봐도 어디서
+   * 뭘 찍었는지 알 수 있다.
+   */
+  function addNotePin(note) {
+    removeNotePin(note.id)
+
+    const box = document.createElement('div')
+    box.className = 'note-pin'
+    let url = null
+    if (note.thumb) {
+      url = URL.createObjectURL(note.thumb)
+    } else if (note.photo?.thumb || note.photo?.thumbUrl) {
+      url = note.remoteThumbUrl ?? note.photo?.thumbUrl ?? null
+    }
+    if (url) {
+      const img = document.createElement('img')
+      img.src = url
+      img.alt = note.title || '사진'
+      img.loading = 'lazy'
+      box.append(img)
+    } else {
+      box.classList.add('is-empty')
+      box.textContent = '📷'
+    }
+
+    const marker = L.marker([note.lat, note.lng], {
+      icon: L.divIcon({ html: box, className: '', iconSize: [30, 30], iconAnchor: [15, 15] }),
+      title: note.title || '기록',
+      riseOnHover: true,
+      zIndexOffset: 1000, // 코스 선·시작점 마커보다 위에
+    }).addTo(noteGroup)
+
+    marker.on('click', () => noteClick?.(note))
+    // blob URL 만 해제 대상이다. 원격 URL 은 해제하면 안 된다.
+    notePins.set(note.id, { marker, url: note.thumb ? url : null })
+    return marker
+  }
+
+  function removeNotePin(id) {
+    const prev = notePins.get(id)
+    if (!prev) return
+    noteGroup.removeLayer(prev.marker)
+    // divIcon 안의 blob URL 을 놓아준다. 안 하면 사진마다 메모리가 샌다.
+    if (prev.url) URL.revokeObjectURL(prev.url)
+    notePins.delete(id)
+  }
+
+  /** 현재 화면 범위에 드는 노트만 핀으로 남긴다. */
+  function redrawNotePins() {
+    if (!noteSource.length) {
+      for (const id of [...notePins.keys()]) removeNotePin(id)
+      return
+    }
+    // 화면을 살짝 넘겨 그려두면 조금 움직였을 때 핀이 깜빡이지 않는다
+    const bounds = map.getBounds().pad(0.25)
+    const wanted = new Set()
+    let count = 0
+    for (const n of noteSource) {
+      if (count >= MAX_PINS) break
+      if (!bounds.contains([n.lat, n.lng])) continue
+      wanted.add(n.id)
+      count++
+      if (!notePins.has(n.id)) addNotePin(n)
+    }
+    for (const id of [...notePins.keys()]) if (!wanted.has(id)) removeNotePin(id)
+  }
+  map.on('moveend zoomend', redrawNotePins)
+
   // 사이드바 접기, 고도 프로필 접기, 창 크기 변경 — 지도 컨테이너 크기가 바뀌는
   // 경로가 여러 개다. 그때마다 invalidateSize()를 부르는 대신 한곳에서 관찰한다.
   // (부르지 않으면 Leaflet이 옛 크기를 기준으로 타일과 좌표를 계산해 지도가 어긋난다)
@@ -152,15 +228,30 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     return b
   }
 
+  /**
+   * 지도를 bounds 에 맞춘다.
+   *
+   * **`animate: false` 가 기본이다.** Leaflet 의 줌 애니메이션 경로가 이 앱에서
+   * 완료되지 않는 경우가 있다 — 실측: 줌 12에서 전국(목표 줌 8)으로 `fitBounds` 를
+   * 부르면 유효한 bounds 와 올바른 목표 줌을 계산하고 `map.fitBounds` 까지
+   * 호출되는데 줌이 그대로였다. 같은 호출에 `animate: false` 를 주면 즉시 8로 갔다.
+   * 핀 개수와는 무관했다(핀을 모두 치워도 재현).
+   *
+   * 근본 원인은 확정하지 못했다. 다만 이 앱에서 줌 애니메이션은 부가 기능이고,
+   * 구간을 바꿀 때 즉시 이동하는 편이 오히려 반응이 빠르게 느껴진다.
+   * 호출부가 필요하면 `{ animate: true }` 로 덮어쓸 수 있다.
+   */
   function fitBounds(b, options) {
     if (!b.isValid()) return
     const ins = getInsets?.() ?? {}
     map.fitBounds(b, {
       paddingTopLeft: [ins.left ?? 24, ins.top ?? 20],
       paddingBottomRight: [ins.right ?? 24, ins.bottom ?? 40],
+      animate: false,
       ...options,
     })
     syncMarkerSize()
+    redrawNotePins()
   }
 
   return {
@@ -254,50 +345,37 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
     // ── 사진·메모 핀 ───────────────────────────────────
     /**
-     * 노트 핀을 올린다. 이미 있으면 갈아끼운다.
-     * 썸네일이 있으면 핀 자체를 작은 사진으로 만든다 — 지도만 봐도 어디서
-     * 뭘 찍었는지 알 수 있다.
+     * 화면에 보이는 노트만 핀으로 그린다.
+     *
+     * 전부 그리면 기록 수만큼 DOM 마커와 blob URL 이 동시에 살아 있다.
+     * 수백 장이 되면 지도 조작이 눈에 띄게 무거워지고 메모리도 그만큼 잡는다.
+     * 지금 보이는 범위 + 여유분만 그리고, 지도를 움직이면 다시 계산한다.
+     *
+     * @param {Array} notes 전체 노트
+     * @param {{onClick?: Function}} opts
      */
-    setNotePin(note, { onClick } = {}) {
-      this.removeNotePin(note.id)
-
-      const el = document.createElement('div')
-      el.className = 'note-pin'
-      let url = null
-      if (note.thumb) {
-        url = URL.createObjectURL(note.thumb)
-        const img = document.createElement('img')
-        img.src = url
-        img.alt = note.title || '사진'
-        el.append(img)
-      } else {
-        el.classList.add('is-empty')
-        el.textContent = '📷'
-      }
-
-      const marker = L.marker([note.lat, note.lng], {
-        icon: L.divIcon({ html: el, className: '', iconSize: [30, 30], iconAnchor: [15, 15] }),
-        title: note.title || '기록',
-        riseOnHover: true,
-        zIndexOffset: 1000, // 코스 선·시작점 마커보다 위에
-      }).addTo(noteGroup)
-
-      marker.on('click', () => onClick?.(note))
-      notePins.set(note.id, { marker, url })
-      return marker
+    syncNotePins(notes, opts = {}) {
+      noteSource = notes
+      noteClick = opts.onClick ?? noteClick
+      redrawNotePins()
     },
 
-    removeNotePin(id) {
-      const prev = notePins.get(id)
-      if (!prev) return
-      noteGroup.removeLayer(prev.marker)
-      // divIcon 안의 blob URL 을 놓아준다. 안 하면 사진마다 메모리가 샌다.
-      if (prev.url) URL.revokeObjectURL(prev.url)
-      notePins.delete(id)
+    /** 지금 그려진 핀 수 / 전체 (상태 표시용) */
+    notePinStats() {
+      return { drawn: notePins.size, total: noteSource.length }
     },
+
+    /** 노트 핀 하나를 강제로 올린다 (범위 계산과 무관하게). */
+    setNotePin(note, opts = {}) {
+      if (opts.onClick) noteClick = opts.onClick
+      addNotePin(note)
+    },
+
+    removeNotePin,
 
     clearNotePins() {
-      for (const id of [...notePins.keys()]) this.removeNotePin(id)
+      noteSource = []
+      for (const id of [...notePins.keys()]) removeNotePin(id)
     },
 
     /**

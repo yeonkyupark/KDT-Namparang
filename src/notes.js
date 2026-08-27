@@ -58,6 +58,10 @@ export function createNotes({ host, view, courses, sync }) {
   const remoteUrl = (note, kind) =>
     sync?.photoUrl?.(note, kind) ?? note?.photo?.[`${kind}Url`] ?? null
 
+  /** 지도에 넘길 노트 목록. 원격 썸네일 URL 을 미리 붙인다 (map.js 는 설정을 모른다). */
+  const pinSource = () =>
+    [...notes.values()].map((n) => ({ ...n, remoteThumbUrl: remoteUrl(n, 'thumb') }))
+
   /** @type {Map<string, object>} */
   const notes = new Map()
   let picking = null
@@ -489,7 +493,7 @@ export function createNotes({ host, view, courses, sync }) {
           image ? image.full : null,
         )
         notes.set(rec.id, rec)
-        view.setNotePin(rec, { onClick: openViewer })
+        view.syncNotePins(pinSource(), { onClick: openViewer })
         renderList()
         refreshUsage()
         hintPending()
@@ -624,7 +628,7 @@ export function createNotes({ host, view, courses, sync }) {
         if (!confirm(`"${cur.title || '이 기록'}"을 삭제할까요?`)) return
         await deleteNote(cur.id)
         notes.delete(cur.id)
-        view.removeNotePin(cur.id)
+        view.syncNotePins(pinSource(), { onClick: openViewer })
         renderList()
         refreshUsage()
         hintPending()
@@ -640,17 +644,33 @@ export function createNotes({ host, view, courses, sync }) {
   // ── 목록 ─────────────────────────────────────────────
   const listUrls = new Set()
 
+  /**
+   * 목록에 한 번에 보여줄 개수.
+   *
+   * 전부 렌더하면 기록마다 DOM 노드와 blob URL 이 생긴다. 수백 장이면
+   * 구간을 바꿀 때마다 그만큼 만들고 해제하느라 눈에 띄게 느려진다.
+   */
+  const PAGE = 20
+  let shown = PAGE
+
   function renderList() {
     for (const u of listUrls) URL.revokeObjectURL(u)
     listUrls.clear()
     list.textContent = ''
 
-    const ordered = [...notes.values()].reverse() // 최근 등록이 위로
-    headCount.textContent = ordered.length ? `${ordered.length}개` : ''
+    const all = [...notes.values()].reverse() // 최근 등록이 위로
+    headCount.textContent = all.length ? `${all.length}개` : ''
+    const ordered = all.slice(0, shown)
 
-    if (ordered.length === 0) {
+    if (all.length === 0) {
       list.append(
-        el('li', 'notes-empty', '아직 기록이 없습니다. 사진을 올리면 지도에 위치가 표시됩니다.'),
+        el(
+          'li',
+          'notes-empty',
+          sync?.configured?.()
+            ? '이 브라우저에 기록이 없습니다. 사진을 올리거나, 동기화를 눌러 GitHub 에 저장된 기록을 받아오세요.'
+            : '아직 기록이 없습니다. 사진을 올리면 지도에 위치가 표시됩니다.',
+        ),
       )
       return
     }
@@ -680,6 +700,18 @@ export function createNotes({ host, view, courses, sync }) {
       li.onclick = () => openViewer(n)
       list.append(li)
     }
+
+    if (all.length > ordered.length) {
+      const more = el('li', 'notes-more')
+      const btn = el('button', 'link-btn', `더 보기 (${all.length - ordered.length}개 남음)`)
+      btn.type = 'button'
+      btn.onclick = () => {
+        shown += PAGE
+        renderList()
+      }
+      more.append(btn)
+      list.append(more)
+    }
   }
 
   /** 동기화가 설정돼 있으면 "올릴 것이 있다"는 걸 알려준다. */
@@ -692,9 +724,17 @@ export function createNotes({ host, view, courses, sync }) {
   async function refreshUsage() {
     const u = await usage()
     const count = notes.size
-    usageLine.textContent = u
+    const base = u
       ? `사진 ${count}장 · 이 브라우저에 약 ${formatBytes(u.usedBytes)} 저장됨`
       : `사진 ${count}장`
+
+    // 지도에 일부만 그려졌으면 그 사실을 알린다.
+    // 상한에 걸려 조용히 빠지면 "사진이 사라졌다"고 오해하게 된다.
+    const pins = view.notePinStats?.()
+    const capped = pins && pins.drawn < pins.total
+    usageLine.textContent = capped
+      ? `${base} · 지도에 ${pins.drawn}개 표시 (확대하면 더 보입니다)`
+      : base
   }
 
   function toast(message) {
@@ -711,10 +751,13 @@ export function createNotes({ host, view, courses, sync }) {
       usageLine.textContent = `저장소를 열 수 없습니다 — ${e.message}`
       return
     }
-    view.clearNotePins()
-    for (const n of notes.values()) view.setNotePin(n, { onClick: openViewer })
+    // 핀은 화면에 보이는 것만 그린다. 전부 그리면 기록 수만큼 DOM 마커와
+    // blob URL 이 동시에 살아 있어서 수백 장이 되면 지도가 무거워진다.
+    view.syncNotePins(pinSource(), { onClick: openViewer })
     renderList()
     refreshUsage()
+    // 지도를 움직이면 그려진 핀 수가 바뀌므로 표시도 따라가게 한다
+    view.map.on('moveend zoomend', refreshUsage)
 
     if (sync && !syncMsg.textContent) {
       const at = await sync.lastSyncedAt()

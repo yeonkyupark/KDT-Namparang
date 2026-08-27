@@ -1014,3 +1014,5 @@ body {
 @media (prefers-color-scheme: dark) {
   .check-warn { color: #e0a44b; }
 }
+
+.notes-more { padding: .3rem .2rem .1rem; }
