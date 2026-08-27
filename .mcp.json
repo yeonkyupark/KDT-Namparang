@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "namparang-gil": {
+      "command": "node",
+      "args": ["mcp/server.mjs"]
+    }
+  }
+}

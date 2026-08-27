@@ -125,6 +125,39 @@ GitHub 동기화를 쓰든 안 쓰든, 사이드바 기록 섹션의 **ZIP 백�
 
 GitHub 계정 문제나 정책 변경에 대한 탈출구다. 클라우드 동기화가 있어도 남겨뒀다.
 
+## MCP 서버 (코스 정보를 Claude 등에서 바로 조회)
+
+`mcp/server.mjs` — 앱이 쓰는 `public/data/courses.json` / `meta.json` 을 그대로 읽어
+[MCP](https://modelcontextprotocol.io) 도구로 감싼다. 새 데이터 파이프라인은 없다 —
+`npm run build:data` 로 갱신되는 그 파일이 유일한 원본이다. 로컬 stdio 로만 서빙하고,
+개인 기록(사진·메모)은 다루지 않는다.
+
+| 도구 | 하는 일 |
+|---|---|
+| `get_courses(from, to?)` | 번호 범위의 코스 상세 + 구간 합계(거리·소요시간·상승/하강) |
+| `list_courses(region?)` | 90개(+임시 2개) 코스 목록. 지역으로 필터링 가능 |
+| `search_courses(query)` | 지역명·지점명·별칭으로 검색 |
+| `get_trail_summary()` | 전체 개요(총거리·총상승) + 출처·주의사항 |
+
+**Claude Code**: 이 리포에 이미 `.mcp.json` 이 있다 — 이 폴더에서 세션을 열면 자동으로 붙는다.
+
+**Claude Desktop**: `claude_desktop_config.json` 에 추가 (경로는 실제 리포 위치로 바꾼다):
+
+```json
+{
+  "mcpServers": {
+    "namparang-gil": {
+      "command": "node",
+      "args": ["/absolute/path/to/Namparang/mcp/server.mjs"]
+    }
+  }
+}
+```
+
+`node mcp/server.mjs` 로 직접 실행해 볼 수도 있다(표준입출력으로 JSON-RPC를 주고받는
+프로토콜이라 터미널에 그냥 실행하면 응답이 안 보인다 — 호스트가 자식 프로세스로 띄워야
+정상적으로 쓸 수 있다. 직접 확인하려면 `npx @modelcontextprotocol/inspector node mcp/server.mjs`).
+
 ## 보안 주의
 
 사진·메모 쓰기에는 **본인의 fine-grained PAT**가 필요하고, 이 토큰은
