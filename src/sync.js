@@ -50,6 +50,28 @@ function toRemote(note) {
 
 const laterOf = (a, b) => ((a?.updatedAt ?? '') >= (b?.updatedAt ?? '') ? a : b)
 
+/**
+ * 사진의 raw URL 을 **설정에서 조립한다.**
+ *
+ * 업로드 시점의 절대 URL 도 노트에 함께 저장하지만, 그것만 믿으면 사진 리포 이름을
+ * 바꾸거나 계정을 옮긴 순간 기존 사진이 전부 깨진다. 경로(`photo.full`/`photo.thumb`)는
+ * 안정적이므로 현재 설정 + 경로로 다시 만들고, 경로가 없는 옛 노트만 저장된 URL 로 폴백한다.
+ *
+ * @param {object} settings
+ * @param {object} note
+ * @param {'full'|'thumb'} kind
+ */
+export function photoUrl(settings, note, kind) {
+  const p = note?.photo
+  if (!p) return null
+  const path = p[kind]
+  if (path && settings?.owner && settings?.photoRepo) {
+    const enc = path.split('/').map(encodeURIComponent).join('/')
+    return `https://raw.githubusercontent.com/${settings.owner}/${settings.photoRepo}/${settings.branch || 'main'}/${enc}`
+  }
+  return p[`${kind}Url`] ?? null
+}
+
 export function createSync(getSettings) {
   const listeners = new Set()
   const emit = (state) => listeners.forEach((fn) => fn(state))
@@ -68,7 +90,7 @@ export function createSync(getSettings) {
   }
 
   /** 아직 원격에 올라가지 않은 사진을 올리고 경로를 note.photo 에 기록한다. */
-  async function uploadPhotos(photosClient, notes) {
+  async function uploadPhotos(photosClient, notes, prefix) {
     if (!photosClient) return { uploaded: 0, skipped: 0, missing: notes.filter((n) => !n.photo).length }
 
     let uploaded = 0
@@ -79,7 +101,9 @@ export function createSync(getSettings) {
       if (!full || !n.thumb) continue
 
       const year = (n.takenAt ?? n.createdAt ?? '').slice(0, 4) || 'misc'
-      const paths = { full: `${year}/${n.id}.jpg`, thumb: `${year}/${n.id}_t.jpg` }
+      // 사진 리포는 여러 트레일이 공유할 수 있다. 접두어로 구분한다.
+      const dir = prefix ? `${prefix}/${year}` : year
+      const paths = { full: `${dir}/${n.id}.jpg`, thumb: `${dir}/${n.id}_t.jpg` }
 
       const a = await photosClient.putBlobIfAbsent(paths.full, full, `사진 추가 ${n.id}`)
       const b = await photosClient.putBlobIfAbsent(paths.thumb, n.thumb, `썸네일 추가 ${n.id}`)
@@ -110,7 +134,7 @@ export function createSync(getSettings) {
       // 1) 사진 먼저. notes.json 에 경로를 담아야 하므로 순서가 중요하다.
       emit({ phase: 'photos' })
       const local = await allNotesRaw()
-      const photoStat = await uploadPhotos(photos, local)
+      const photoStat = await uploadPhotos(photos, local, getSettings().photoPrefix ?? '')
 
       // 2) notes.json 을 읽어 병합하고 쓴다. 409 면 다시 읽어 재시도.
       emit({ phase: 'notes' })

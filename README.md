@@ -87,9 +87,15 @@ npm run build:data   # GPX -> public/data/
 
 사진·메모는 기본적으로 **이 브라우저에만** 저장됩니다. 기기 간에 옮기려면 GitHub을 저장소로 씁니다.
 
-1. **사진 리포지토리를 만든다** — 예: `KDT-Namparang-photos`
+1. **사진 리포지토리를 만든다** — 예: `trail-photos`
    소스 리포를 가볍게 유지하려고 사진은 따로 둡니다. 커밋된 사진은 삭제해도
    git 히스토리에 남으므로, 소스 리포에 섞으면 `git clone` 이 계속 무거워집니다.
+
+   **이 리포는 여러 트레일이 공유할 수 있습니다.** 사진 파일명이 노트 UUID 라
+   트레일이 섞여도 충돌하지 않고, 경로가 `{폴더}/{연도}/{id}.jpg` 로 나뉩니다.
+   해파랑길·서해랑길을 같은 구조로 만들 때 리포를 새로 만들 필요가 없습니다 —
+   설정의 **사진 폴더** 만 `haeparang`, `seohaerang` 으로 바꾸면 됩니다.
+   그래서 이름을 트레일에 묶이지 않게 짓는 편이 좋습니다.
 2. **fine-grained PAT 를 만든다** — [토큰 만들기](https://github.com/settings/personal-access-tokens/new)
    - Repository access: 위 리포 2개만 선택
    - Permissions → Repository permissions → **Contents: Read and write**
@@ -99,7 +105,8 @@ npm run build:data   # GPX -> public/data/
 
 저장 위치
 - 메모: 메인 리포 `public/data/notes.json` (한 파일, sha 낙관적 락 + 재시도)
-- 사진: 사진 리포 `{연도}/{id}.jpg`, `{연도}/{id}_t.jpg`
+- 사진: 사진 리포 `{폴더}/{연도}/{id}.jpg`, `{폴더}/{연도}/{id}_t.jpg`
+  (URL 은 저장된 값이 아니라 **현재 설정에서 조립**하므로 리포 이름을 바꿔도 깨지지 않습니다)
 - 읽기는 `raw.githubusercontent.com` 으로 갑니다 — 즉시 반영되고 API 한도에 걸리지 않습니다
 
 ## ZIP 백업

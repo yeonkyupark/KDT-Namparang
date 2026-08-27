@@ -31,7 +31,16 @@ const KEY = 'namparang.sync'
 const DEFAULTS = {
   owner: 'yeonkyupark',
   repo: 'KDT-Namparang',
-  photoRepo: 'KDT-Namparang-photos',
+  photoRepo: 'trail-photos',
+  /**
+   * 사진 리포 안에서 이 프로젝트가 쓰는 최상위 폴더.
+   *
+   * 사진 리포는 **여러 트레일이 공유할 수 있게** 설계했다 — 노트 ID 가 UUID 라
+   * 트레일이 섞여도 파일명이 충돌하지 않는다. 다만 접두어가 없으면 리포를 열어봐도
+   * 어느 트레일 사진인지 알 수 없으므로 경로를 `{prefix}/{연도}/{id}.jpg` 로 둔다.
+   * 해파랑길·서해랑길을 같은 구조로 만들면 `haeparang`, `seohaerang` 만 바꾸면 된다.
+   */
+  photoPrefix: 'namparang',
   branch: 'main',
   token: '',
   tokenSetAt: '', // 만료(권장 90일) 임박을 알려주기 위해 설정 시점을 기록한다
@@ -133,7 +142,10 @@ export function openSettings({ current, onSave, onCheck }) {
   const ownerIn = field('GitHub 계정', current.owner)
   const repoIn = field('메모 리포지토리', current.repo, { hint: 'public/data/notes.json 에 기록을 저장합니다' })
   const photoIn = field('사진 리포지토리', current.photoRepo, {
-    hint: '소스 리포를 가볍게 유지하기 위해 사진은 따로 둡니다. 비워두면 사진을 올리지 않습니다',
+    hint: '여러 트레일이 공유할 수 있습니다. 비워두면 사진을 올리지 않습니다',
+  })
+  const prefixIn = field('사진 폴더', current.photoPrefix, {
+    hint: '사진 리포 안에서 이 트레일이 쓸 폴더. 경로는 {폴더}/{연도}/{id}.jpg 가 됩니다',
   })
   const tokenIn = field('Personal Access Token', current.token, {
     type: 'password',
@@ -185,6 +197,7 @@ export function openSettings({ current, onSave, onCheck }) {
     owner: ownerIn.value.trim(),
     repo: repoIn.value.trim(),
     photoRepo: photoIn.value.trim(),
+    photoPrefix: prefixIn.value.trim().replace(/^\/+|\/+$/g, ''),
     token: tokenIn.value.trim() || current.token,
   })
 

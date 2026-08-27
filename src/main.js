@@ -7,7 +7,7 @@ import { readState, writeState } from './state.js'
 import { configureDifficulty } from './metrics.js'
 import { cumulative, pointAtFraction } from './geo.js'
 import { createNotes } from './notes.js'
-import { createSync } from './sync.js'
+import { createSync, photoUrl } from './sync.js'
 import { loadSettings, saveSettings, openSettings, tokenExpiryNote } from './settings.js'
 import { createClient } from './github.js'
 
@@ -291,6 +291,7 @@ async function main() {
     lastSyncedAtValue: null,
     configured: () => Boolean(syncSettings.token && syncSettings.owner && syncSettings.repo),
     tokenExpiryNote: () => tokenExpiryNote(syncSettings),
+    photoUrl: (note, kind) => photoUrl(syncSettings, note, kind),
     openSettings: () =>
       openSettings({
         current: syncSettings,

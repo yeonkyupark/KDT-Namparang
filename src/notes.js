@@ -51,6 +51,13 @@ const fmtDate = (iso) => {
 export function createNotes({ host, view, courses, sync }) {
   const mainCourses = courses.filter((c) => !c.isAlt)
 
+  /**
+   * 원격 사진 URL. 동기화 설정에서 조립하므로 리포 이름을 바꿔도 깨지지 않는다.
+   * 동기화가 없으면 노트에 저장된 절대 URL 로 폴백한다.
+   */
+  const remoteUrl = (note, kind) =>
+    sync?.photoUrl?.(note, kind) ?? note?.photo?.[`${kind}Url`] ?? null
+
   /** @type {Map<string, object>} */
   const notes = new Map()
   let picking = null
@@ -597,7 +604,7 @@ export function createNotes({ host, view, courses, sync }) {
       revokeCurrent = null
       img.removeAttribute('src')
       const blob = (await getPhoto(cur.id)) ?? cur.thumb
-      const picked = imageSrc(blob, cur.photo?.fullUrl ?? cur.photo?.thumbUrl)
+      const picked = imageSrc(blob, remoteUrl(cur, 'full') ?? remoteUrl(cur, 'thumb'))
       if (picked.src) {
         img.src = picked.src
         img.alt = cur.title || '사진'
@@ -650,7 +657,7 @@ export function createNotes({ host, view, courses, sync }) {
 
     for (const n of ordered) {
       const li = el('li', 'note-item')
-      const picked = imageSrc(n.thumb, n.photo?.thumbUrl)
+      const picked = imageSrc(n.thumb, remoteUrl(n, 'thumb'))
       if (picked.src) {
         if (n.thumb) listUrls.add(picked.src)
         const img = el('img', 'note-thumb')
