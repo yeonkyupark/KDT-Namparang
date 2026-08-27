@@ -1,0 +1,43 @@
+{
+ "version": 1,
+ "updatedAt": "2026-08-27T06:13:18.623Z",
+ "notes": [
+  {
+   "id": "10d95a46-9cb7-4aca-9436-e7bcc9a81b66",
+   "lat": 34.874037299722225,
+   "lng": 128.42071429972222,
+   "courseId": "14",
+   "takenAt": "2026-08-16T07:17:27.000Z",
+   "createdAt": "2026-08-27T04:57:29.106Z",
+   "updatedAt": "2026-08-27T05:42:35.213Z",
+   "title": "통영시립도서관 입구",
+   "memo": "14코스 종점",
+   "rating": 0,
+   "locationSource": "exif",
+   "address": "",
+   "deleted": true,
+   "photo": null
+  },
+  {
+   "id": "6a4992cb-e0d8-4389-9156-622951444d1c",
+   "lat": 34.874037299722225,
+   "lng": 128.42071429972222,
+   "courseId": "14",
+   "takenAt": "2026-08-16T07:17:27.000Z",
+   "createdAt": "2026-08-27T06:13:09.307Z",
+   "updatedAt": "2026-08-27T06:13:09.307Z",
+   "title": "통영시립도서관 입구",
+   "memo": "14코스 종점, 15코스 시점",
+   "rating": 0,
+   "locationSource": "exif",
+   "address": "",
+   "deleted": false,
+   "photo": {
+    "full": "2026/6a4992cb-e0d8-4389-9156-622951444d1c.jpg",
+    "thumb": "2026/6a4992cb-e0d8-4389-9156-622951444d1c_t.jpg",
+    "fullUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/2026/6a4992cb-e0d8-4389-9156-622951444d1c.jpg",
+    "thumbUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/2026/6a4992cb-e0d8-4389-9156-622951444d1c_t.jpg"
+   }
+  }
+ ]
+}
