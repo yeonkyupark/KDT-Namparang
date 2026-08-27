@@ -9,10 +9,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:ele": "node scripts/build-ele.mjs",
+    "calibrate:ele": "node scripts/calibrate-ele.mjs",
     "build:data": "node scripts/build-data.mjs",
     "build:notes": "node scripts/build-notes.mjs"
   },
   "devDependencies": {
+    "fast-xml-parser": "^5.11.0",
     "vite": "^6.0.7"
   }
 }
