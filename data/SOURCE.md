@@ -84,7 +84,33 @@
 
 ---
 
-## 3. 지도 타일
+## 3. 코스 메타데이터 (`data/courses.meta.csv`, `data/reference/durunubi-courses.json`)
+
+| 항목 | 내용 |
+|---|---|
+| **출처** | 두루누비 (한국관광공사) — https://www.durunubi.kr/namparang-course-list.do |
+| **수집 경로** | 사이트가 목록을 채우는 데 쓰는 `/api/course/list?type=DNWW&serviceFlag=NA` |
+| **수집일** | 2026-08-27 |
+| **내용** | 90개 코스 × (시점·종점 지점명·주소·교통편, 시군, 공식 거리·소요시간·난이도, 코스 설명) |
+
+### robots.txt 준수
+
+- `robots.txt` 의 `User-agent: *` 가 차단한 경로는 `/api/campaign/...`, `/api/dmzadmin`,
+  `/api/dmz`, `/api/poi/main`, `/api/tracking`, `/dmzadmin`, `/download`, `/KTO/`,
+  `travelRoad.do`, `travelRoadV2.do`, `saveBeforeLogin.do` 다.
+  **우리가 쓴 `/api/course/list` 와 목록 페이지는 차단 대상이 아니다.**
+- **`/download` 가 차단되어 있어 두루누비의 GPX 는 받지 않았다.** 노선 데이터는
+  1번(Daum 카페) 자료를 그대로 쓴다.
+- 요청은 총 3회(목록 페이지 1 + API 2)만 보냈다.
+
+### 이용 방침
+
+- 공공기관(한국관광공사)이 공개한 관광 정보다. 출처를 표기하고 개인 비상업 용도로만 쓴다.
+- 원본 응답을 `data/reference/durunubi-courses.json` 에 그대로 보관해 재현 가능하게 했다.
+- 우리 노선(1번 자료)과 **공식 코스 경계가 다른 14개 슬롯**에는 공식 지점명을 쓰지 않았다.
+  자세한 내용은 `PLAN.md` 0.4 참조.
+
+## 4. 지도 타일
 
 | 레이어 | 출처 | 표기 의무 |
 |---|---|---|
@@ -97,7 +123,7 @@
 
 ---
 
-## 4. 고도 데이터 (`data/cache/ele/`)
+## 5. 고도 데이터 (`data/cache/ele/`)
 
 | 항목 | 내용 |
 |---|---|
