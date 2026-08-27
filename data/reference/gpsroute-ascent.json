@@ -1,0 +1,632 @@
+[
+ {
+  "seq": 1,
+  "km": 18.8,
+  "ascentM": 573,
+  "country": "대한민국",
+  "region": "부산광역시"
+ },
+ {
+  "seq": 2,
+  "km": 18.7,
+  "ascentM": 679,
+  "country": "대한민국",
+  "region": "부산광역시"
+ },
+ {
+  "seq": 3,
+  "km": 14.7,
+  "ascentM": 595,
+  "country": "대한민국",
+  "region": "부산광역시"
+ },
+ {
+  "seq": 4,
+  "km": 22.7,
+  "ascentM": 639,
+  "country": "대한민국",
+  "region": "부산광역시"
+ },
+ {
+  "seq": 5,
+  "km": 21.4,
+  "ascentM": 134,
+  "country": "대한민국",
+  "region": "부산광역시"
+ },
+ {
+  "seq": 6,
+  "km": 14.8,
+  "ascentM": 310,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 7,
+  "km": 11.0,
+  "ascentM": 285,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 8,
+  "km": 15.5,
+  "ascentM": 864,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 9,
+  "km": 15.0,
+  "ascentM": 339,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 10,
+  "km": 16.0,
+  "ascentM": 568,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 11,
+  "km": 16.1,
+  "ascentM": 354,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 12,
+  "km": 18.1,
+  "ascentM": 398,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 13,
+  "km": 21.0,
+  "ascentM": 358,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 14,
+  "km": 13.7,
+  "ascentM": 383,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 15,
+  "km": 15.9,
+  "ascentM": 334,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 16,
+  "km": 13.2,
+  "ascentM": 456,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 17,
+  "km": 19.3,
+  "ascentM": 781,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 18,
+  "km": 16.6,
+  "ascentM": 716,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 19,
+  "km": 16.3,
+  "ascentM": 655,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 20,
+  "km": 18.2,
+  "ascentM": 825,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 21,
+  "km": 14.5,
+  "ascentM": 545,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 22,
+  "km": 13.4,
+  "ascentM": 727,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 23,
+  "km": 9.0,
+  "ascentM": 666,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 24,
+  "km": 10.5,
+  "ascentM": 416,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 25,
+  "km": 14.5,
+  "ascentM": 394,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 26,
+  "km": 13.0,
+  "ascentM": 540,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 27,
+  "km": 10.1,
+  "ascentM": 339,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 28,
+  "km": 14.8,
+  "ascentM": 511,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 29,
+  "km": 17.0,
+  "ascentM": 464,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 30,
+  "km": 16.2,
+  "ascentM": 795,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 31,
+  "km": 16.3,
+  "ascentM": 376,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 32,
+  "km": 14.0,
+  "ascentM": 520,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 33,
+  "km": 17.7,
+  "ascentM": 392,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 34,
+  "km": 10.1,
+  "ascentM": 200,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 35,
+  "km": 12.7,
+  "ascentM": 656,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 36,
+  "km": 17.5,
+  "ascentM": 688,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 37,
+  "km": 14.9,
+  "ascentM": 643,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 38,
+  "km": 12.2,
+  "ascentM": 384,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 39,
+  "km": 10.0,
+  "ascentM": 195,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 40,
+  "km": 17.1,
+  "ascentM": 653,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 41,
+  "km": 17.6,
+  "ascentM": 589,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 42,
+  "km": 16.3,
+  "ascentM": 679,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 43,
+  "km": 13.7,
+  "ascentM": 547,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 44,
+  "km": 13.5,
+  "ascentM": 580,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 45,
+  "km": 12.8,
+  "ascentM": 300,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 46,
+  "km": 17.6,
+  "ascentM": 571,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 47,
+  "km": 27.4,
+  "ascentM": 475,
+  "country": "대한민국",
+  "region": "경상남도"
+ },
+ {
+  "seq": 48,
+  "km": 13.4,
+  "ascentM": 202,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 49,
+  "km": 15.2,
+  "ascentM": 254,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 50,
+  "km": 17.5,
+  "ascentM": 512,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 51,
+  "km": 14.6,
+  "ascentM": 118,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 52,
+  "km": 14.9,
+  "ascentM": 114,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 53,
+  "km": 11.3,
+  "ascentM": 190,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 54,
+  "km": 7.3,
+  "ascentM": 200,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 55,
+  "km": 15.6,
+  "ascentM": 166,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 56,
+  "km": 14.7,
+  "ascentM": 424,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 57,
+  "km": 17.9,
+  "ascentM": 766,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 58,
+  "km": 15.9,
+  "ascentM": 437,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 59,
+  "km": 7.8,
+  "ascentM": 168,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 60,
+  "km": 15.1,
+  "ascentM": 273,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 61,
+  "km": 14.3,
+  "ascentM": 154,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 62,
+  "km": 24.5,
+  "ascentM": 157,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 63,
+  "km": 21.1,
+  "ascentM": 178,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 64,
+  "km": 11.8,
+  "ascentM": 201,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 65,
+  "km": 24.7,
+  "ascentM": 478,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 66,
+  "km": 11.2,
+  "ascentM": 552,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 67,
+  "km": 16.1,
+  "ascentM": 374,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 68,
+  "km": 20.7,
+  "ascentM": 348,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 69,
+  "km": 15.6,
+  "ascentM": 517,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 70,
+  "km": 13.2,
+  "ascentM": 174,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 71,
+  "km": 21.9,
+  "ascentM": 469,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 72,
+  "km": 14.7,
+  "ascentM": 252,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 73,
+  "km": 16.9,
+  "ascentM": 273,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 74,
+  "km": 9.2,
+  "ascentM": 121,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 75,
+  "km": 20.6,
+  "ascentM": 289,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 76,
+  "km": 13.9,
+  "ascentM": 180,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 77,
+  "km": 15.4,
+  "ascentM": 253,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 78,
+  "km": 18.7,
+  "ascentM": 275,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 79,
+  "km": 27.1,
+  "ascentM": 508,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 80,
+  "km": 20.2,
+  "ascentM": 357,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 81,
+  "km": 14.9,
+  "ascentM": 165,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 82,
+  "km": 14.5,
+  "ascentM": 190,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 83,
+  "km": 18.2,
+  "ascentM": 548,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 84,
+  "km": 13.7,
+  "ascentM": 213,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 85,
+  "km": 17.8,
+  "ascentM": 201,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 86,
+  "km": 25.0,
+  "ascentM": 410,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 87,
+  "km": 18.3,
+  "ascentM": 528,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 88,
+  "km": 15.4,
+  "ascentM": 693,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 89,
+  "km": 13.7,
+  "ascentM": 532,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ },
+ {
+  "seq": 90,
+  "km": 14.0,
+  "ascentM": 565,
+  "country": "대한민국",
+  "region": "전남광주통합특별시"
+ }
+]

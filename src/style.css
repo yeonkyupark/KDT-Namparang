@@ -1,0 +1,154 @@
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f4f6f8;
+  --fg: #1a1d21;
+  --fg-dim: #5a626b;
+  --line: #dfe3e8;
+  --accent: #0d6b5f;
+  --accent-soft: #e6f2f0;
+  --ok: #1a7f5a;
+  --warn: #a35d00;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --bg-soft: #1c2126;
+    --fg: #e8ebee;
+    --fg-dim: #9aa4ae;
+    --line: #2b3238;
+    --accent: #4dd0b8;
+    --accent-soft: #16302c;
+    --ok: #4dc98f;
+    --warn: #e0a44b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic",
+        "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+#app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+}
+
+.loading { color: var(--fg-dim); }
+
+h1 {
+  margin: 0 0 .35rem;
+  font-size: 1.75rem;
+  letter-spacing: -.02em;
+}
+
+.sub {
+  margin: 0 0 2rem;
+  color: var(--fg-dim);
+  font-size: .95rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: .75rem;
+  margin: 0 0 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.stats li {
+  padding: .85rem 1rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.stats .n {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+
+.stats .k {
+  display: block;
+  margin-top: .1rem;
+  color: var(--fg-dim);
+  font-size: .8rem;
+}
+
+h2 {
+  margin: 2.25rem 0 .75rem;
+  font-size: 1rem;
+  color: var(--fg-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+ol.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+ol.steps li {
+  display: flex;
+  gap: .75rem;
+  align-items: baseline;
+  padding: .7rem 1rem;
+  border-top: 1px solid var(--line);
+  font-size: .92rem;
+}
+
+ol.steps li:first-child { border-top: 0; }
+
+ol.steps .mark {
+  flex: 0 0 1.3rem;
+  font-size: .85rem;
+}
+
+ol.steps .done { color: var(--ok); }
+ol.steps .now  { color: var(--warn); }
+ol.steps .todo { color: var(--fg-dim); }
+
+ol.steps li.is-done   { color: var(--fg-dim); }
+ol.steps li.is-done b { font-weight: 500; text-decoration: line-through; }
+ol.steps li.is-now    { background: var(--accent-soft); }
+
+ol.steps b { font-weight: 600; }
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  color: var(--fg-dim);
+  font-size: .82rem;
+}
+
+footer a { color: var(--accent); }

@@ -1,0 +1,14 @@
+# 소스 파일은 LF로 통일 (Windows/Linux CI 양쪽에서 동일하게)
+* text=auto eol=lf
+
+# 제3자 원본 자료 — 줄바꿈 변환 금지.
+# CRLF로 바뀌면 data/raw/downloaded.json 의 SHA1 이 깨지고
+# data/SOURCE.md 의 "원본 그대로" 보장이 무효가 된다.
+*.gpx -text
+
+# 이미지 / 바이너리
+*.jpg -text
+*.jpeg -text
+*.png -text
+*.webp -text
+*.zip -text

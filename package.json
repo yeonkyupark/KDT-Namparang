@@ -1,0 +1,18 @@
+{
+  "name": "namparang",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "남파랑길 90개 코스 가이드 — 개인용 트레킹 기록 웹앱",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:ele": "node scripts/build-ele.mjs",
+    "build:data": "node scripts/build-data.mjs",
+    "build:notes": "node scripts/build-notes.mjs"
+  },
+  "devDependencies": {
+    "vite": "^6.0.7"
+  }
+}

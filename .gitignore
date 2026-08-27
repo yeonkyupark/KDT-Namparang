@@ -1,0 +1,28 @@
+node_modules/
+dist/
+dist-ssr/
+
+# 로컬 환경 / 비밀
+.env
+.env.*
+!.env.example
+
+# 절대 커밋하지 않는다 — PAT 등 토큰
+*.token
+secrets.json
+
+# 에디터 / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 로그
+*.log
+npm-debug.log*
+
+# 작업용 임시 파일
+scratch/
+tmp/
