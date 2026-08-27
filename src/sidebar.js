@@ -1,6 +1,9 @@
 import { DIFFICULTY_COLOR, formatDuration } from './map.js'
 import { difficultyOf } from './metrics.js'
 
+/** 공식 등급 숫자 → 라벨 */
+const LEVEL_LABEL = { 1: '쉬움', 2: '보통', 3: '어려움' }
+
 const el = (tag, cls, text) => {
   const n = document.createElement(tag)
   if (cls) n.className = cls
@@ -107,7 +110,12 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
     const min = sel.reduce((s, c) => s + c.durationMin, 0)
     const up = sel.reduce((s, c) => s + c.ascentM, 0)
     const down = sel.reduce((s, c) => s + c.descentM, 0)
-    const label = difficultyOf(km / Math.max(sel.length, 1), up / Math.max(sel.length, 1))
+    // 코스별 난이도가 공식 등급이므로, 구간 평균도 그 등급(1/2/3)의 평균으로 낸다.
+    // 거리·상승으로 다시 계산하면 개별 코스에 표시된 난이도와 어긋난다.
+    const levels = sel.map((c) => c.difficultyLevel).filter((n) => n > 0)
+    const label = levels.length
+      ? LEVEL_LABEL[Math.round(levels.reduce((a, b) => a + b, 0) / levels.length)] ?? '보통'
+      : difficultyOf(km / Math.max(sel.length, 1), up / Math.max(sel.length, 1))
 
     const rows = [
       ['코스', `${sel.length}개`],
@@ -123,7 +131,7 @@ export function createSidebar(root, courses, { onRangeChange, onPick, onHover } 
       summary.append(r)
     }
 
-    const notes = ['고도는 DEM 추정값 · 소요시간은 계산값']
+    const notes = ['고도는 DEM 추정값 · 난이도와 소요시간은 공식(두루누비) 기준']
     if (alts.length) notes.unshift(`임시·우회 노선 ${alts.length}개 합계 제외`)
     summary.append(el('div', 'sum-note', notes.join(' · ')))
   }

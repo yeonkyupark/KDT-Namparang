@@ -28,6 +28,7 @@ import {
   DIFFICULTY_BREAKS,
 } from './lib/config.mjs'
 
+const OFFICIAL = 'data/reference/durunubi-courses.json'
 const ELE_CACHE = 'data/cache/ele'
 const META_CSV = 'data/courses.meta.csv'
 const OUT_DIR = 'public/data'
@@ -104,6 +105,31 @@ function loadOverrides() {
   return map
 }
 
+/**
+ * 두루누비(한국관광공사) 공식 메타데이터를 코스 번호로 색인한다.
+ *
+ * 난이도와 소요시간은 **공식값을 쓴다.** 운영기관이 매긴 등급이 내가 만든
+ * 공식(거리 + 상승/100)보다 신뢰도가 높다 — 실제로 90개 중 41개만 일치했다.
+ * 거리는 우리 GPX 값을 유지한다: 지도에 그리는 선과 숫자가 어긋나면 안 된다.
+ * (우리 노선이 공식과 다른 16개 코스는 `note` 에 기록돼 있다)
+ */
+function loadOfficial() {
+  if (!existsSync(OFFICIAL)) return new Map()
+  const rows = JSON.parse(readFileSync(OFFICIAL, 'utf8'))
+  const map = new Map()
+  for (const r of rows) {
+    const m = /(\d+)\s*코스/.exec(r.crs_Kor_Nm ?? '')
+    if (!m) continue
+    map.set(String(Number(m[1])), {
+      km: Number(r.crs_Dstnc),
+      min: Number(r.crs_Totl_Rqrm_Hour),
+      level: Number(r.level), // 1 쉬움 / 2 보통 / 3 어려움
+      levelLabel: (r.lev ?? '').trim(),
+    })
+  }
+  return map
+}
+
 function difficultyOf(km, ascentM) {
   const score = km + ascentM / 100
   return { score: r1(score), label: DIFFICULTY_BREAKS.find((b) => score <= b.max).label }
@@ -140,6 +166,7 @@ function durationMin(km, ascentM) {
 function main() {
   const courses = listCourses()
   const overrides = loadOverrides()
+  const official = loadOfficial()
 
   // ── 1. GPX 파싱 + 고도 캐시 결합 ─────────────────────────
   const built = []
@@ -217,10 +244,22 @@ function main() {
 
   // ── 3. 파생 지표 ─────────────────────────────────────────
   for (const c of built) {
-    const d = difficultyOf(c.km, c.ascentM)
-    c.difficultyScore = d.score
-    if (!c.difficulty) c.difficulty = d.label
-    c.durationMin = durationMin(c.km, c.ascentM)
+    const off = c.isAlt ? null : official.get(c.id)
+
+    // 우리 계산값은 참고용으로 남겨둔다 (공식값이 없는 임시노선의 대비책도 된다)
+    const computed = difficultyOf(c.km, c.ascentM)
+    c.difficultyScore = computed.score
+    c.naismithMin = durationMin(c.km, c.ascentM)
+
+    // 난이도·소요시간은 공식값 우선. CSV 수기 보정이 있으면 그게 최우선.
+    if (!c.difficulty) c.difficulty = off?.levelLabel || computed.label
+    c.difficultyLevel = off?.level ?? DIFFICULTY_BREAKS.findIndex((b) => b.label === c.difficulty) + 1
+    c.durationMin = off?.min ?? c.naismithMin
+    c.durationSource = off?.min ? 'official' : 'computed'
+
+    // 공식 거리는 표시용 참고값. 지도 선과 일치해야 하므로 distanceKm 은 우리 값을 쓴다.
+    c.officialKm = off?.km ?? null
+
     if (!c.name) c.name = c.isAlt ? `${c.id}코스 (우회)` : `${c.seq}코스`
   }
 
@@ -251,6 +290,10 @@ function main() {
     eleMin: c.eleMin,
     eleMax: c.eleMax,
     difficulty: c.difficulty,
+    difficultyLevel: c.difficultyLevel,
+    durationSource: c.durationSource,
+    naismithMin: c.naismithMin,
+    officialKm: c.officialKm,
     bbox: c.bbox,
     startLatLng: c.startLatLng,
     endLatLng: c.endLatLng,
@@ -291,13 +334,23 @@ function main() {
           thresholdM: ELE_THRESHOLD_M,
         },
         duration: {
-          note: '네이스미스 규칙 계산값. GPX의 <time>은 편집 시각이라 쓰지 않는다.',
+          note: '두루누비(한국관광공사) 공식 권장 소요시간. 임시노선만 네이스미스 계산값.',
+          naismithNote: '참고용 계산값은 naismithMin 에 함께 담았다.',
           walkSpeedKmh: WALK_SPEED_KMH,
           ascentSpeedMh: ASCENT_SPEED_MH,
         },
         // 난이도 경계를 클라이언트에 중복 정의하지 않도록 실어 보낸다.
         // JSON에는 Infinity가 없어서 마지막 max 는 null 로 직렬화된다.
-        difficulty: { formula: '거리km + 상승m/100', breaks: DIFFICULTY_BREAKS },
+        difficulty: {
+          source: '두루누비(한국관광공사) 공식 등급',
+          formula: '공식 등급이 없는 임시노선만 거리km + 상승m/100',
+          breaks: DIFFICULTY_BREAKS,
+        },
+        official: {
+          source: '두루누비 — https://www.durunubi.kr/namparang-course-list.do',
+          license: '공공누리 제4유형 (출처표시 + 상업적이용금지 + 변경금지)',
+          note: '난이도·소요시간은 공식값. 거리는 지도 선과 맞추기 위해 GPX 실측값을 쓴다.',
+        },
         source: {
           gpx: 'Daum 카페 "도보여행(섬&산) 좋은사람들" — https://cafe.daum.net/mtsingles/LN1X/1631',
           detail: 'data/SOURCE.md',

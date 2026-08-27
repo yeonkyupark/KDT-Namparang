@@ -131,9 +131,29 @@ function renderInfoCard(host, course) {
     card.append(box)
   }
 
+  // 우리 노선과 공식 노선의 거리가 눈에 띄게 다르면 그 사실을 숨기지 않는다.
+  if (course.officialKm && Math.abs(course.distanceKm - course.officialKm) >= 1) {
+    card.append(
+      el(
+        'div',
+        'ic-note',
+        `표시 거리는 이 앱이 그리는 노선 기준입니다. 공식 거리는 ${course.officialKm} km 로, ` +
+          `이 코스는 두 노선이 다릅니다.`,
+      ),
+    )
+  }
+
   if (course.isAlt) card.append(el('div', 'ic-note', '임시·우회 노선 — 구간 합계에서 제외됩니다.'))
   if (course.note) card.append(el('div', 'ic-note', course.note))
-  card.append(el('div', 'ic-foot', '고도는 DEM 추정값 · 소요시간은 계산값'))
+  card.append(
+    el(
+      'div',
+      'ic-foot',
+      course.durationSource === 'official'
+        ? '고도는 DEM 추정값 · 난이도와 소요시간은 두루누비 공식값'
+        : '고도는 DEM 추정값 · 소요시간은 계산값',
+    ),
+  )
 
   host.append(card)
 }
