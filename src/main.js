@@ -1,29 +1,8 @@
 import './style.css'
+import { loadIndex, loadMeta } from './data.mjs'
+import { createMap, DIFFICULTY_COLOR, formatDuration } from './map.js'
 
-// 단계 0 플레이스홀더.
-// 배포 파이프라인이 살아있는지 확인하는 용도이며, 단계 3에서 지도로 교체된다.
-
-const STATS = [
-  { n: '90', k: '코스 (+ 임시노선 2)' },
-  { n: '1,463.9', k: '총 거리 (km)' },
-  { n: '29,217', k: '누적 상승 (m, DEM 추정)' },
-  { n: '415', k: '예상 소요 (시간)' },
-]
-
-const STEPS = [
-  { s: 'done', t: '데이터 확보', d: 'GPX 92개 수집 · 전수 검증' },
-  { s: 'done', t: '출처 표기', d: 'data/SOURCE.md' },
-  { s: 'done', t: '배포 파이프라인', d: 'Vite + GitHub Actions + Pages' },
-  { s: 'done', t: '고도 확보', d: 'SRTM DEM 29,660점 · 실측 대조 캘리브레이션' },
-  { s: 'done', t: '전처리', d: 'GPX → courses.json 118KB' },
-  { s: 'now',  t: '랜딩 지도', d: 'Leaflet · 92개 코스 표시' },
-  { s: 'todo', t: '구간 선택', d: '시작~종료 코스 · 요약 정보' },
-  { s: 'todo', t: '고도 프로필', d: 'SVG 차트' },
-  { s: 'todo', t: '사진 · 메모', d: 'EXIF GPS · IndexedDB' },
-  { s: 'todo', t: 'GitHub 동기화', d: 'Contents API' },
-]
-
-const MARK = { done: '✓', now: '▸', todo: '·' }
+const TILES = ['기본', '지형', '위성']
 
 const el = (tag, cls, text) => {
   const n = document.createElement(tag)
@@ -32,47 +11,188 @@ const el = (tag, cls, text) => {
   return n
 }
 
-function render() {
+function renderShell() {
   const app = document.getElementById('app')
   app.textContent = ''
+  app.className = 'shell'
 
-  const h1 = el('h1')
-  h1.append('남파랑길 가이드 ', el('span', 'badge', '개발 중'))
-  app.append(h1)
+  const header = el('header', 'topbar')
+  const brand = el('div', 'brand')
+  brand.append(el('b', null, '남파랑길'))
+  brand.append(el('span', 'brand-sub', '부산 오륙도 → 해남 땅끝탑'))
+  header.append(brand)
 
-  app.append(el('p', 'sub', '부산 오륙도 → 해남 땅끝탑 · 남해안 90개 코스'))
+  const tools = el('div', 'tools')
+  const tileGroup = el('div', 'seg')
+  tileGroup.setAttribute('role', 'group')
+  tileGroup.setAttribute('aria-label', '지도 종류')
+  tools.append(tileGroup)
+  header.append(tools)
 
-  const ul = el('ul', 'stats')
-  for (const s of STATS) {
-    const li = el('li')
-    li.append(el('span', 'n', s.n), el('span', 'k', s.k))
-    ul.append(li)
-  }
-  app.append(ul)
+  const mapEl = el('div', 'map')
+  mapEl.id = 'map'
 
-  app.append(el('h2', null, '진행 상황'))
-
-  const ol = el('ol', 'steps')
-  for (const step of STEPS) {
-    const li = el('li', `is-${step.s}`)
-    li.append(
-      el('span', `mark ${step.s}`, MARK[step.s]),
-      el('span', null, ''),
-    )
-    const body = li.lastChild
-    body.append(el('b', null, step.t), ' — ', step.d)
-    ol.append(li)
-  }
-  app.append(ol)
-
-  const foot = el('footer')
-  const a = el('a', null, 'Daum 카페 "도보여행(섬&산) 좋은사람들"')
-  a.href = 'https://cafe.daum.net/mtsingles/LN1X/1631'
-  a.rel = 'noopener noreferrer'
-  a.target = '_blank'
-  foot.append('GPX 노선 © ', a, ' — 원저작자가 90개 코스를 직접 걸어 정리한 자료입니다. ')
-  foot.append('개인 비상업적 용도로만 사용합니다.')
-  app.append(foot)
+  app.append(header, mapEl)
+  return { header, tileGroup, mapEl, tools }
 }
 
-render()
+function renderLegend(container, counts) {
+  const legend = el('div', 'legend')
+  legend.append(el('span', 'legend-title', '난이도'))
+  for (const [label, color] of Object.entries(DIFFICULTY_COLOR)) {
+    const item = el('span', 'legend-item')
+    const sw = el('i', 'sw')
+    sw.style.background = color
+    item.append(sw, el('span', null, `${label} ${counts[label] ?? 0}`))
+    legend.append(item)
+  }
+  const alt = el('span', 'legend-item')
+  alt.append(el('i', 'sw sw-alt'), el('span', null, '임시노선 2'))
+  legend.append(alt)
+  container.append(legend)
+}
+
+function renderSummary(container, meta, courses) {
+  const box = el('div', 'summary')
+  const rows = [
+    ['코스', `${meta.mainCourseCount}개`],
+    ['총 거리', `${meta.totalKm.toLocaleString()} km`],
+    ['누적 상승', `${meta.totalAscentM.toLocaleString()} m`],
+    // 총합에서 분 단위는 무의미하다. 시간으로 끊는다.
+    [
+      '예상 소요',
+      `약 ${Math.round(
+        courses.filter((c) => !c.isAlt).reduce((s, c) => s + c.durationMin, 0) / 60,
+      ).toLocaleString()}시간`,
+    ],
+  ]
+  for (const [k, v] of rows) {
+    const r = el('div', 'summary-row')
+    r.append(el('span', 'k', k), el('span', 'v', v))
+    box.append(r)
+  }
+  const note = el('div', 'summary-note')
+  note.textContent = '고도는 SRTM DEM 추정값, 소요시간은 계산값입니다.'
+  box.append(note)
+  container.append(box)
+}
+
+function renderInfoCard(course) {
+  let card = document.querySelector('.infocard')
+  if (!card) {
+    card = el('div', 'infocard')
+    document.querySelector('.shell').append(card)
+  }
+  card.textContent = ''
+
+  const head = el('div', 'ic-head')
+  head.append(el('b', null, course.name))
+  if (course.region) head.append(el('span', 'ic-region', course.region))
+  const close = el('button', 'ic-close')
+  close.type = 'button'
+  close.setAttribute('aria-label', '닫기')
+  close.textContent = '✕'
+  close.onclick = () => card.remove()
+  head.append(close)
+  card.append(head)
+
+  if (course.alias) card.append(el('div', 'ic-alias', course.alias))
+
+  card.append(
+    el(
+      'div',
+      'ic-route',
+      course.start && course.end ? `${course.start} → ${course.end}` : '지점명 정보 없음',
+    ),
+  )
+
+  const stats = el('div', 'ic-stats')
+  const pairs = [
+    ['거리', `${course.distanceKm} km`],
+    ['예상 소요', formatDuration(course.durationMin)],
+    ['누적 상승', `${course.ascentM.toLocaleString()} m`],
+    ['누적 하강', `${course.descentM.toLocaleString()} m`],
+    ['고도', `${course.eleMin}–${course.eleMax} m`],
+    ['난이도', course.difficulty],
+  ]
+  for (const [k, v] of pairs) {
+    const s = el('div', 'ic-stat')
+    s.append(el('span', 'k', k), el('span', 'v', v))
+    stats.append(s)
+  }
+  card.append(stats)
+
+  if (course.note) card.append(el('div', 'ic-note', course.note))
+  card.append(el('div', 'ic-foot', '고도는 DEM 추정값 · 소요시간은 계산값'))
+}
+
+function renderError(message) {
+  const app = document.getElementById('app')
+  app.textContent = ''
+  app.className = ''
+  const box = el('div', 'errorbox')
+  box.append(el('h1', null, '데이터를 불러오지 못했습니다'))
+  box.append(el('p', null, message))
+  box.append(el('p', 'hint', 'npm run build:data 를 실행해 public/data/ 를 생성했는지 확인하세요.'))
+  app.append(box)
+}
+
+async function main() {
+  let courses
+  let meta
+  try {
+    ;[courses, meta] = await Promise.all([loadIndex(), loadMeta()])
+  } catch (e) {
+    renderError(e.message)
+    return
+  }
+
+  const { tileGroup, mapEl, tools } = renderShell()
+
+  /**
+   * fitBounds가 피해야 하는 화면 영역.
+   * 넓은 화면은 오버레이가 좌상단, 좁은 화면은 하단에 있다.
+   * 오버레이 높이는 내용에 따라 달라지므로 실제로 측정한다.
+   */
+  const getInsets = () => {
+    const w = window.innerWidth
+    const overlayH = document.querySelector('.overlay')?.offsetHeight ?? 0
+    if (w < 641) return { left: 12, top: 12, right: 12, bottom: overlayH + 44 }
+    return { left: Math.min(230, Math.round(w * 0.18)), top: 20, right: 24, bottom: 40 }
+  }
+
+  const view = createMap(mapEl, courses, { onSelect: renderInfoCard, getInsets })
+
+  // 타일 토글
+  let active = TILES[0]
+  const buttons = TILES.map((name) => {
+    const b = el('button', 'seg-btn' + (name === active ? ' is-on' : ''), name)
+    b.type = 'button'
+    b.onclick = () => {
+      if (name === active) return
+      active = name
+      view.setTile(name)
+      for (const other of buttons) other.classList.toggle('is-on', other.textContent === name)
+    }
+    tileGroup.append(b)
+    return b
+  })
+
+  const fit = el('button', 'ghost-btn', '전체보기')
+  fit.type = 'button'
+  fit.onclick = () => view.fitAll()
+  tools.append(fit)
+
+  const counts = {}
+  for (const c of courses) if (!c.isAlt) counts[c.difficulty] = (counts[c.difficulty] ?? 0) + 1
+
+  const overlay = el('div', 'overlay')
+  renderSummary(overlay, meta, courses)
+  renderLegend(overlay, counts)
+  document.querySelector('.shell').append(overlay)
+
+  // 오버레이를 붙인 뒤에 맞춘다 — getInsets가 그 높이를 재기 때문이다.
+  view.fitAll({ animate: false })
+}
+
+main()

@@ -1,154 +1,309 @@
 :root {
   --bg: #ffffff;
-  --bg-soft: #f4f6f8;
+  --panel: #ffffff;
+  --panel-blur: rgba(255, 255, 255, 0.92);
   --fg: #1a1d21;
   --fg-dim: #5a626b;
   --line: #dfe3e8;
   --accent: #0d6b5f;
   --accent-soft: #e6f2f0;
-  --ok: #1a7f5a;
-  --warn: #a35d00;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
   --radius: 10px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171a;
-    --bg-soft: #1c2126;
+    --panel: #1c2126;
+    --panel-blur: rgba(28, 33, 38, 0.93);
     --fg: #e8ebee;
     --fg-dim: #9aa4ae;
     --line: #2b3238;
     --accent: #4dd0b8;
     --accent-soft: #16302c;
-    --ok: #4dc98f;
-    --warn: #e0a44b;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   }
 }
 
 * { box-sizing: border-box; }
 
-html, body {
+html, body, #app {
   margin: 0;
   padding: 0;
+  height: 100%;
+}
+
+body {
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic",
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic",
         "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
-#app {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 3rem 1.25rem 4rem;
-}
+.loading { padding: 2rem; color: var(--fg-dim); }
 
-.loading { color: var(--fg-dim); }
+/* ── 레이아웃 ────────────────────────────────────────── */
 
-h1 {
-  margin: 0 0 .35rem;
-  font-size: 1.75rem;
-  letter-spacing: -.02em;
-}
-
-.sub {
-  margin: 0 0 2rem;
-  color: var(--fg-dim);
-  font-size: .95rem;
-}
-
-.badge {
-  display: inline-block;
-  padding: .2rem .55rem;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: .75rem;
-  font-weight: 600;
-  vertical-align: middle;
-}
-
-.stats {
+.shell {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: .75rem;
-  margin: 0 0 2rem;
-  padding: 0;
-  list-style: none;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  position: relative;
 }
 
-.stats li {
-  padding: .85rem 1rem;
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+.map {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
 }
 
-.stats .n {
-  display: block;
-  font-size: 1.35rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.02em;
+/* ── 상단바 ──────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .55rem .9rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  z-index: 500;
 }
 
-.stats .k {
-  display: block;
-  margin-top: .1rem;
+.brand { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
+.brand b { font-size: 1.05rem; letter-spacing: -.01em; }
+.brand-sub {
   color: var(--fg-dim);
   font-size: .8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-h2 {
-  margin: 2.25rem 0 .75rem;
-  font-size: 1rem;
-  color: var(--fg-dim);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-}
+.tools { display: flex; align-items: center; gap: .5rem; flex: 0 0 auto; }
 
-ol.steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.seg {
+  display: inline-flex;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 8px;
   overflow: hidden;
 }
 
-ol.steps li {
+.seg-btn,
+.ghost-btn {
+  font: inherit;
+  font-size: .82rem;
+  color: var(--fg-dim);
+  background: transparent;
+  border: 0;
+  padding: .34rem .68rem;
+  cursor: pointer;
+}
+
+.seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+.seg-btn:hover, .ghost-btn:hover { color: var(--fg); }
+.seg-btn.is-on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.ghost-btn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/* ── 지도 위 오버레이 ────────────────────────────────── */
+
+.overlay {
+  position: absolute;
+  left: .75rem;
+  top: 3.4rem;
+  z-index: 450;
   display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  max-width: min(15rem, calc(100% - 1.5rem));
+  pointer-events: none;
+}
+
+.summary, .legend {
+  background: var(--panel-blur);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: .6rem .7rem;
+  pointer-events: auto;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
   gap: .75rem;
-  align-items: baseline;
-  padding: .7rem 1rem;
-  border-top: 1px solid var(--line);
-  font-size: .92rem;
-}
-
-ol.steps li:first-child { border-top: 0; }
-
-ol.steps .mark {
-  flex: 0 0 1.3rem;
   font-size: .85rem;
+  padding: .1rem 0;
 }
+.summary-row .k { color: var(--fg-dim); }
+.summary-row .v { font-variant-numeric: tabular-nums; font-weight: 600; }
 
-ol.steps .done { color: var(--ok); }
-ol.steps .now  { color: var(--warn); }
-ol.steps .todo { color: var(--fg-dim); }
-
-ol.steps li.is-done   { color: var(--fg-dim); }
-ol.steps li.is-done b { font-weight: 500; text-decoration: line-through; }
-ol.steps li.is-now    { background: var(--accent-soft); }
-
-ol.steps b { font-weight: 600; }
-
-footer {
-  margin-top: 3rem;
-  padding-top: 1.25rem;
+.summary-note {
+  margin-top: .4rem;
+  padding-top: .4rem;
   border-top: 1px solid var(--line);
   color: var(--fg-dim);
-  font-size: .82rem;
+  font-size: .72rem;
+  line-height: 1.35;
 }
 
-footer a { color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: .3rem .7rem; align-items: center; }
+.legend-title {
+  width: 100%;
+  color: var(--fg-dim);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.legend-item { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.sw-alt {
+  background: repeating-linear-gradient(90deg, #8b8f98 0 4px, transparent 4px 7px);
+}
+
+/* ── 코스 정보 카드 ──────────────────────────────────── */
+
+.infocard {
+  position: absolute;
+  right: .75rem;
+  bottom: 1.6rem;
+  z-index: 460;
+  width: min(20rem, calc(100% - 1.5rem));
+  background: var(--panel-blur);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: .7rem .8rem .6rem;
+}
+
+.ic-head { display: flex; align-items: center; gap: .45rem; }
+.ic-head b { font-size: 1rem; }
+.ic-region {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: .08rem .45rem;
+  font-size: .72rem;
+  font-weight: 600;
+}
+.ic-close {
+  margin-left: auto;
+  font: inherit;
+  font-size: .8rem;
+  color: var(--fg-dim);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: .1rem .2rem;
+}
+.ic-close:hover { color: var(--fg); }
+
+.ic-alias { color: var(--accent); font-size: .8rem; margin-top: .15rem; }
+.ic-route { color: var(--fg-dim); font-size: .82rem; margin: .3rem 0 .55rem; line-height: 1.4; }
+
+.ic-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .3rem .8rem;
+}
+.ic-stat { display: flex; justify-content: space-between; gap: .5rem; font-size: .84rem; }
+.ic-stat .k { color: var(--fg-dim); }
+.ic-stat .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.ic-note {
+  margin-top: .5rem;
+  color: var(--fg-dim);
+  font-size: .76rem;
+}
+
+.ic-foot {
+  margin-top: .5rem;
+  padding-top: .45rem;
+  border-top: 1px solid var(--line);
+  color: var(--fg-dim);
+  font-size: .7rem;
+}
+
+/* ── Leaflet 툴팁 ────────────────────────────────────── */
+
+.leaflet-tooltip {
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: .4rem .55rem;
+  font: inherit;
+  font-size: .82rem;
+}
+.leaflet-tooltip::before { display: none; }
+
+.tip b { font-size: .88rem; }
+.tip-region { color: var(--accent); font-size: .74rem; }
+.tip-alias { color: var(--accent); font-size: .76rem; }
+.tip-route { color: var(--fg-dim); font-size: .78rem; margin-top: .15rem; }
+.tip-stats { font-variant-numeric: tabular-nums; margin-top: .2rem; }
+.tip-note { color: var(--fg-dim); font-size: .74rem; margin-top: .2rem; }
+
+.leaflet-container {
+  font: inherit;
+  background: var(--bg);
+}
+.leaflet-control-attribution {
+  background: var(--panel-blur) !important;
+  color: var(--fg-dim) !important;
+  font-size: .68rem !important;
+}
+.leaflet-control-attribution a { color: var(--accent) !important; }
+
+/* ── 오류 화면 ───────────────────────────────────────── */
+
+.errorbox { max-width: 34rem; margin: 0 auto; padding: 3rem 1.25rem; }
+.errorbox h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+.errorbox p { color: var(--fg-dim); }
+.errorbox .hint { font-size: .85rem; }
+
+/* ── 모바일 ──────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .brand-sub { display: none; }
+  .seg-btn, .ghost-btn { padding: .3rem .5rem; font-size: .78rem; }
+
+  /* 오버레이를 하단으로 내린다. 상단에 두면 지도를 덮고 줌 컨트롤과 겹친다. */
+  .overlay {
+    top: auto;
+    bottom: 1.9rem;
+    left: .5rem;
+    right: .5rem;
+    max-width: none;
+  }
+
+  /* 한 줄 flex로 두면 좁은 폭에서 값이 잘린다. 2열 그리드로 고정. */
+  .summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .1rem .9rem;
+  }
+  .summary-row { font-size: .8rem; }
+  .summary-note { grid-column: 1 / -1; }
+
+  .legend { gap: .25rem .6rem; }
+  .legend-item { font-size: .75rem; }
+
+  /* 정보 카드는 오버레이를 덮는다 — 코스를 고른 동안은 그게 주 관심사다. */
+  .infocard {
+    right: .5rem;
+    left: .5rem;
+    width: auto;
+    bottom: 1.9rem;
+    z-index: 470;
+  }
+}
