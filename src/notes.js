@@ -711,6 +711,8 @@ export function createNotes({ host, view, courses, sync }) {
 
     if (sync && !syncMsg.textContent) {
       const at = await sync.lastSyncedAt()
+      const expiry = sync.tokenExpiryNote?.()
+      if (expiry) return setSyncMsg(expiry, 'bad')
       setSyncMsg(
         !sync.configured()
           ? '동기화 미설정 — ⚙ 를 눌러 설정하세요'

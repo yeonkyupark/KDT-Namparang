@@ -8,7 +8,7 @@ import { configureDifficulty } from './metrics.js'
 import { cumulative, pointAtFraction } from './geo.js'
 import { createNotes } from './notes.js'
 import { createSync } from './sync.js'
-import { loadSettings, saveSettings, openSettings } from './settings.js'
+import { loadSettings, saveSettings, openSettings, tokenExpiryNote } from './settings.js'
 import { createClient } from './github.js'
 
 /**
@@ -290,6 +290,7 @@ async function main() {
     lastSyncedAt: () => syncCore.lastSyncedAt(),
     lastSyncedAtValue: null,
     configured: () => Boolean(syncSettings.token && syncSettings.owner && syncSettings.repo),
+    tokenExpiryNote: () => tokenExpiryNote(syncSettings),
     openSettings: () =>
       openSettings({
         current: syncSettings,

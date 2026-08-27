@@ -6,9 +6,16 @@
  *   PAT 를 리포에 커밋      → 누구나 리포에 쓸 수 있다. 불가.
  *   OAuth (표준)            → 토큰 교환에 client_secret 필요 → 서버 필요.
  *   OAuth Device Flow       → client_secret 은 없어도 되지만 GitHub 토큰
- *                             엔드포인트가 CORS 를 허용하지 않아 브라우저에서
- *                             직접 호출 못 한다 → 프록시(=서버) 필요.
+ *                             엔드포인트가 CORS 를 허용하지 않는다 → 프록시(=서버) 필요.
+ *   기존 github.com 로그인    → 쓸 수 없다. api.github.com 은 `Access-Control-Allow-Origin: *`
+ *                             를 주는데, 와일드카드는 credentials 와 함께 쓸 수 없다.
  *   본인 PAT 를 브라우저에   → 서버가 필요 없는 **유일한** 해법. 채택.
+ *
+ * 브라우저에서 실측한 결과 (2026-08-27):
+ *   fetch('https://github.com/login/device/code')          → TypeError: Failed to fetch
+ *   fetch('https://github.com/login/oauth/access_token')   → TypeError: Failed to fetch
+ *   fetch('https://api.github.com/rate_limit')             → 200 (CORS 허용)
+ *   fetch('https://api.github.com/user', {credentials})    → TypeError: Failed to fetch
  *
  * ── 위험과 완화 ──
  * localStorage 의 토큰은 XSS 가 터지면 유출된다. 그래서:
@@ -27,6 +34,27 @@ const DEFAULTS = {
   photoRepo: 'KDT-Namparang-photos',
   branch: 'main',
   token: '',
+  tokenSetAt: '', // 만료(권장 90일) 임박을 알려주기 위해 설정 시점을 기록한다
+}
+
+/** fine-grained PAT 권장 만료. 이 날수에 가까워지면 경고한다. */
+const TOKEN_MAX_DAYS = 90
+const TOKEN_WARN_DAYS = 80
+
+/** 토큰 설정 후 지난 날수. 기록이 없으면 null. */
+export function tokenAgeDays(settings) {
+  if (!settings?.tokenSetAt) return null
+  const d = (Date.now() - new Date(settings.tokenSetAt).getTime()) / 86400000
+  return Number.isFinite(d) ? Math.floor(d) : null
+}
+
+/** 만료 임박/초과 안내 문구. 문제 없으면 빈 문자열. */
+export function tokenExpiryNote(settings) {
+  const age = tokenAgeDays(settings)
+  if (age == null) return ''
+  if (age >= TOKEN_MAX_DAYS) return `토큰을 설정한 지 ${age}일 — 만료됐을 수 있습니다`
+  if (age >= TOKEN_WARN_DAYS) return `토큰 설정 후 ${age}일 — 곧 만료됩니다 (권장 ${TOKEN_MAX_DAYS}일)`
+  return ''
 }
 
 const el = (tag, cls, text) => {
@@ -133,7 +161,24 @@ export function openSettings({ current, onSave, onCheck }) {
   box.append(guide)
 
   const status = el('div', 'settings-status')
+  const age = tokenAgeDays(current)
+  if (age != null) {
+    const note = tokenExpiryNote(current)
+    status.className = note ? 'settings-status is-bad' : 'settings-status'
+    status.textContent = note || `현재 토큰: ${maskToken(current.token)} · 설정 후 ${age}일`
+  }
   box.append(status)
+
+  // 토큰을 붙여넣는 순간 바로 검증한다. "저장했는데 왜 안 되지"를 없애는 게 목적이다.
+  let checkTimer = null
+  tokenIn.addEventListener('input', () => {
+    clearTimeout(checkTimer)
+    const v = tokenIn.value.trim()
+    if (v.length < 20) return
+    status.className = 'settings-status'
+    status.textContent = '붙여넣은 토큰 확인 중…'
+    checkTimer = setTimeout(() => checkBtn.click(), 400)
+  })
 
   const collect = () => ({
     ...current,
@@ -174,14 +219,17 @@ export function openSettings({ current, onSave, onCheck }) {
   clearBtn.type = 'button'
   clearBtn.hidden = !current.token
   clearBtn.onclick = () => {
-    onSave({ ...collect(), token: '' })
+    onSave({ ...collect(), token: '', tokenSetAt: '' })
     cleanup()
   }
 
   const saveBtn = el('button', 'btn btn-primary', '저장')
   saveBtn.type = 'button'
   saveBtn.onclick = () => {
-    onSave(collect())
+    const next = collect()
+    // 토큰이 바뀐 경우에만 설정일을 갱신한다
+    if (next.token && next.token !== current.token) next.tokenSetAt = new Date().toISOString()
+    onSave(next)
     cleanup()
   }
 

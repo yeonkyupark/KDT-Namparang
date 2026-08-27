@@ -637,6 +637,30 @@ namparang-photos/                   (Public 또는 Private, 사진 전용)
   `color-scheme`, `theme-color`(라이트/다크), CSP, 아이콘 버튼 `aria-label`,
   `img alt`, 입력 레이블, 탭 타겟 24px 이상 - 모두 통과.
 
+**브라우저 로그인은 가능한가 — 불가 (2026-08-27 실측)**
+
+PAT 붙여넣기를 GitHub 로그인으로 대체할 수 있는지 브라우저에서 직접 확인했다.
+
+| 시도 | 결과 |
+|---|---|
+| `fetch('https://github.com/login/device/code')` | **차단** — TypeError: Failed to fetch |
+| `fetch('https://github.com/login/oauth/access_token')` | **차단** |
+| `fetch('https://api.github.com/rate_limit')` | 200 (CORS 허용) |
+| `fetch('https://api.github.com/user', {credentials:'include'})` | **차단** |
+
+- GitHub 의 토큰 엔드포인트(`github.com/login/*`)는 CORS 를 허용하지 않는다.
+  OPTIONS 프리플라이트에도 `Access-Control-Allow-Origin` 이 없다.
+- **이미 github.com 에 로그인돼 있어도 그 세션을 쓸 수 없다.** `api.github.com` 은
+  `Access-Control-Allow-Origin: *` 를 주는데, 와일드카드는 `credentials` 와 병용 불가다.
+
+→ 정적 사이트만으로는 불가능하다. 프록시 1개(예: Cloudflare Worker)를 두면 Device Flow 가
+가능해지지만, OAuth App 토큰의 `repo` 스코프는 **사용자의 모든 리포**에 쓰기 권한을 준다.
+지금의 fine-grained PAT(리포 2개 Contents 한정)보다 권한이 넓어지므로,
+localStorage 에 두는 토큰에는 **오히려 후퇴**다. PAT 방식을 유지한다.
+
+대신 설정 부담을 줄였다: 토큰을 **붙여넣는 순간 자동 검증**하고,
+설정 후 80일이 지나면 동기화 줄에 만료 경고를 띄운다.
+
 **단계 6b 구현 메모**
 - **계획을 하나 바꿨다.** 메모를 노트당 파일 1개(`data/notes/{id}.json`)로 두려 했는데
   단일 파일(`public/data/notes.json`)로 바꿨다. 노트당 파일이면 목록을 얻으려고
