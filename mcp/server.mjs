@@ -2,37 +2,52 @@
 /**
  * 남파랑길 코스 정보 MCP 서버.
  *
- * 웹앱이 이미 만들어 쓰는 `public/data/courses.json` / `meta.json` 을
- * 그대로 읽는다. 데이터 파이프라인을 새로 두지 않는다 — `npm run build:data`
- * 로 갱신되는 그 파일이 유일한 원본이다.
+ * **배포된 정적 사이트의 JSON을 그대로 fetch 한다** — 로컬 파일을 읽지 않는다.
+ * `courses.json`/`meta.json`은 GitHub Pages에 공개돼 있고(CORS 허용,
+ * robots.txt 차단 없음, 우리 자신의 데이터라 권한 문제도 없다), 앱이 갱신되면
+ * 이 서버가 보는 정보도 그만큼 최신이다.
  *
- * 로컬 stdio 로만 서빙한다. 개인 기록(사진·메모)은 다루지 않는다 — 코스
- * 정보(공개 자료 기반)만 노출한다.
+ * 로컬 파일에 의존하지 않는 이유가 하나 더 있다: 저장소를 clone 하지 않고도
+ * 이 파일 하나(+ npm 의존성 2개)만 있으면 어디서든 실행된다. 나중에 이 서버를
+ * 진짜 원격 호스팅(Cloudflare Workers 등)으로 옮기고 싶어지면, 로컬 파일 I/O가
+ * 없으므로 stdio 전송만 HTTP로 바꾸면 거의 그대로 옮겨진다.
+ *
+ * 로컬 stdio 로만 서빙한다(데이터는 원격에서 받아오지만 MCP 서버 프로세스
+ * 자체는 각자의 PC에서 돈다 — claude.ai 웹은 여전히 못 쓴다). 개인 기록
+ * (사진·메모)은 다루지 않는다 — 코스 정보(공개 자료 기반)만 노출한다.
  *
  * 실행: `node mcp/server.mjs` (MCP 호스트가 이 명령으로 자식 프로세스를 띄운다)
  */
 
-import { readFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 import { McpServer } from '@modelcontextprotocol/server'
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import * as z from 'zod/v4'
 
-const here = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = path.join(here, '..', 'public', 'data')
+const SITE = 'https://yeonkyupark.github.io/KDT-Namparang'
 
-let coursesPromise = null
-function loadCourses() {
-  coursesPromise ??= readFile(path.join(DATA_DIR, 'courses.json'), 'utf-8').then(JSON.parse)
-  return coursesPromise
+// 사이트 자체 CDN 캐시가 10분(Cache-Control: max-age=600)이라 그보다 짧게 맞춘다.
+// 도구를 여러 번 연달아 부를 때마다 168KB를 새로 받는 낭비를 막는다.
+const CACHE_TTL_MS = 5 * 60 * 1000
+
+function cachedFetch(path) {
+  let entry = null
+  return async () => {
+    if (entry && Date.now() - entry.at < CACHE_TTL_MS) return entry.value
+    const url = `${SITE}/${path}`
+    let res
+    try {
+      res = await fetch(url)
+    } catch (e) {
+      throw new Error(`${url} 요청 실패 — 네트워크를 확인하세요 (${e.message})`)
+    }
+    if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`)
+    entry = { value: await res.json(), at: Date.now() }
+    return entry.value
+  }
 }
 
-let metaPromise = null
-function loadMeta() {
-  metaPromise ??= readFile(path.join(DATA_DIR, 'meta.json'), 'utf-8').then(JSON.parse)
-  return metaPromise
-}
+const loadCourses = cachedFetch('data/courses.json')
+const loadMeta = cachedFetch('data/meta.json')
 
 /** 목록·검색에 쓰는 간략 표현. */
 function brief(c) {

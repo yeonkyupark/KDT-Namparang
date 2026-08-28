@@ -127,10 +127,11 @@ GitHub 계정 문제나 정책 변경에 대한 탈출구다. 클라우드 동�
 
 ## MCP 서버 (코스 정보를 Claude 등에서 바로 조회)
 
-`mcp/server.mjs` — 앱이 쓰는 `public/data/courses.json` / `meta.json` 을 그대로 읽어
-[MCP](https://modelcontextprotocol.io) 도구로 감싼다. 새 데이터 파이프라인은 없다 —
-`npm run build:data` 로 갱신되는 그 파일이 유일한 원본이다. 로컬 stdio 로만 서빙하고,
-개인 기록(사진·메모)은 다루지 않는다.
+`mcp/server.mjs` — **배포된 사이트의 JSON을 그대로 fetch** 해서
+[MCP](https://modelcontextprotocol.io) 도구로 감싼다. 로컬 파일을 읽지 않는다 —
+`https://yeonkyupark.github.io/KDT-Namparang/data/courses.json` 이 이미 CORS가 열린
+공개 데이터라 리포를 clone 할 필요조차 없다. `mcp/server.mjs` 파일 하나만 있으면
+어디서든 실행된다. 로컬 stdio 로만 서빙하고, 개인 기록(사진·메모)은 다루지 않는다.
 
 | 도구 | 하는 일 |
 |---|---|
@@ -142,15 +143,16 @@ GitHub 계정 문제나 정책 변경에 대한 탈출구다. 클라우드 동�
 로컬 stdio 서버라 **claude.ai(웹)에서는 못 쓴다.** Claude Code(CLI) 또는 Claude
 Desktop(앱)에서만 동작한다. 다른 컴퓨터에서 쓰려면:
 
-### 0. 공통 — 리포 내려받기
+### 0. 공통 — 서버 파일 받기
+
+리포 전체를 clone 할 필요가 없다. `mcp/server.mjs` 파일과 최소 `package.json`만
+있으면 된다. 가장 쉬운 방법은 그냥 clone하는 것이지만, 파일만 따로 받아도 된다.
 
 ```bash
 git clone https://github.com/yeonkyupark/KDT-Namparang.git
 cd KDT-Namparang
-npm install
+npm install @modelcontextprotocol/server zod   # mcp/ 가 쓰는 의존성 2개만 있으면 충분
 ```
-
-코스 데이터(`public/data/*.json`)는 이미 리포에 들어 있으므로 빌드는 필요 없다.
 
 ### Claude Code — 이 리포에서만 쓰기 (가장 간단)
 
