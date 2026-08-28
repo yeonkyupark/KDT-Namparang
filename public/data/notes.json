@@ -1,6 +1,6 @@
 {
  "version": 1,
- "updatedAt": "2026-08-27T07:11:57.096Z",
+ "updatedAt": "2026-08-28T08:09:19.757Z",
  "notes": [
   {
    "id": "10d95a46-9cb7-4aca-9436-e7bcc9a81b66",
@@ -67,13 +67,13 @@
    "courseId": "1",
    "takenAt": "2026-05-01T02:15:15.000Z",
    "createdAt": "2026-08-27T07:11:48.553Z",
-   "updatedAt": "2026-08-27T07:11:48.553Z",
+   "updatedAt": "2026-08-28T08:09:14.435Z",
    "title": "코리아둘레길 시작지점",
    "memo": "왼쪽으로 남파랑길이, 오른쪽으로 해파랑길이 이어진다.",
    "rating": 0,
    "locationSource": "exif",
    "address": "",
-   "deleted": false,
+   "deleted": true,
    "photo": {
     "full": "namparang/2026/b045cba3-30ae-47b7-9c21-f5660f55e9e1.jpg",
     "thumb": "namparang/2026/b045cba3-30ae-47b7-9c21-f5660f55e9e1_t.jpg",
