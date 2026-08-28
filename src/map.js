@@ -24,6 +24,17 @@ const GPX_ATTR =
 
 export const TILE_NAMES = ['기본', '지형', '위성']
 
+/**
+ * 타일을 살짝 옅게 깔아서 그 위의 코스 선(난이도 색 + 흰 테두리)이 더 도드라지게 한다.
+ * 위성 영상은 자체 색이 진하고 복잡해서 조금 더 낮춘다.
+ *
+ * Leaflet의 `opacity` 레이어 옵션은 쓰지 않는다 — 타일 페이드인 애니메이션과
+ * 겹치면 타일이 로드된 뒤에도 `opacity: 0`에 멈춰버린다(실측 확인). 대신
+ * `tilePane` 전체에 CSS 로 옅게를 적용한다 — 세 레이어가 같은 pane 을 쓰고
+ * 한 번에 하나만 보이므로, pane 하나의 값만 바꿔도 충분하다.
+ */
+const TILE_OPACITY = { 기본: 0.85, 지형: 0.85, 위성: 0.75 }
+
 function tileLayers() {
   return {
     기본: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -59,6 +70,7 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
   L.control.zoom({ position: 'topright' }).addTo(map)
   L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map)
+  map.getPane('tilePane').style.opacity = TILE_OPACITY.기본
 
   const casingGroup = L.layerGroup().addTo(map)
   const lineGroup = L.layerGroup().addTo(map)
@@ -86,6 +98,31 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
 
   /** 고도 프로필 hover 위치를 표시하는 마커. 필요할 때 만든다. */
   let cursor = null
+
+  /**
+   * 클릭으로 "고정"한 코스 하나. 마우스오버처럼 지나가면 사라지는 게 아니라
+   * 다시 클릭하거나 다른 코스를 클릭하거나 구간이 바뀌기 전까지 굵게 유지된다.
+   * @type {string|null}
+   */
+  let pinnedId = null
+
+  /** 이 코스가 지금 그려야 할 굵기. 고정된 코스는 선택(ON/OFF) 두께에 +3. */
+  function baseWeight(id, rec) {
+    const w = (rec.on ? ON : OFF).weight
+    return id === pinnedId ? w + 3 : w
+  }
+
+  /** 지도에서 코스를 클릭해 굵게 고정한다. 같은 코스를 다시 클릭하면 해제된다. */
+  function togglePin(id) {
+    const prev = pinnedId
+    pinnedId = prev === id ? null : id
+    for (const target of new Set([prev, pinnedId].filter(Boolean))) {
+      const rec = rendered.get(target)
+      if (!rec) continue
+      rec.line.setStyle({ weight: baseWeight(target, rec) })
+      if (target === pinnedId) rec.line.bringToFront()
+    }
+  }
 
   for (const c of courses) {
     if (!c.overview?.length) continue
@@ -124,14 +161,17 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     line.bindTooltip(label, { sticky: true })
     marker.bindTooltip(label)
 
-    const select = () => onSelect?.(c)
+    const select = () => {
+      togglePin(c.id)
+      onSelect?.(c)
+    }
     line.on('click', select)
     marker.on('click', select)
 
     // 선이 얇아서 hover 판정이 어렵다. 굵게 잡아준다.
-    // 선택 상태에 따라 기준 두께가 달라지므로 rec.on 을 보고 되돌린다.
-    line.on('mouseover', () => line.setStyle({ weight: (rec.on ? ON : OFF).weight + 3 }))
-    line.on('mouseout', () => line.setStyle({ weight: (rec.on ? ON : OFF).weight }))
+    // 고정된 코스는 마우스가 지나가도 그보다 얇아지면 안 되므로 둘 중 굵은 쪽을 쓴다.
+    line.on('mouseover', () => line.setStyle({ weight: Math.max((rec.on ? ON : OFF).weight + 3, baseWeight(c.id, rec)) }))
+    line.on('mouseout', () => line.setStyle({ weight: baseWeight(c.id, rec) }))
 
     rendered.set(c.id, rec)
   }
@@ -348,17 +388,24 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
      * `ids`가 null이면 전부 강조(= 흐린 코스 없음).
      */
     setSelection(ids) {
+      // 고정된 코스가 새 구간 밖으로 밀려나면 고정을 해제한다 — 안 그러면
+      // 화면에 안 보이는 코스가 계속 "고정"된 채로 남는다.
+      if (pinnedId && ids && !ids.has(pinnedId)) pinnedId = null
+
       for (const [id, rec] of rendered) {
         const on = !ids || ids.has(id)
         rec.on = on
         const s = on ? ON : OFF
-        rec.line.setStyle({ weight: s.weight, opacity: s.opacity })
+        rec.line.setStyle({ weight: baseWeight(id, rec), opacity: s.opacity })
         rec.casing.setStyle({ weight: s.casing, opacity: s.casingOpacity })
         // 강조된 선이 흐린 선 위에 오게 한다
         if (on) rec.line.bringToFront()
       }
       syncMarkerSize()
     },
+
+    /** 지도에서 코스를 클릭해 굵게 고정한다(다시 클릭하면 해제). 사이드바 목록 클릭에서도 쓴다. */
+    togglePin,
 
     /** 오버뷰 라인을 고해상도 상세 라인으로 교체한다. 한 번 바꾸면 되돌리지 않는다. */
     upgradeToDetail(id, latlngs) {
@@ -379,8 +426,8 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
     accent(id, on) {
       const rec = rendered.get(id)
       if (!rec) return
-      const base = (rec.on ? ON : OFF).weight
-      rec.line.setStyle({ weight: on ? base + 3 : base })
+      const hoverW = (rec.on ? ON : OFF).weight + 3
+      rec.line.setStyle({ weight: on ? hoverW : baseWeight(id, rec) })
       if (on) rec.line.bringToFront()
     },
 
@@ -414,6 +461,7 @@ export function createMap(el, courses, { onSelect, getInsets } = {}) {
         if (key === name) layer.addTo(map)
         else map.removeLayer(layer)
       }
+      map.getPane('tilePane').style.opacity = TILE_OPACITY[name] ?? 1
     },
 
     // ── 사진·메모 핀 ───────────────────────────────────

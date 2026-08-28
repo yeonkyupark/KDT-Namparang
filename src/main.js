@@ -273,6 +273,7 @@ async function main() {
   const sidebar = createSidebar(stage, courses, {
     onRangeChange: (r) => applyRange(r),
     onPick: (c) => {
+      view.togglePin(c.id)
       renderInfoCard(mapOverlay, c)
       view.focus(c.id)
       sidebar.collapse()
