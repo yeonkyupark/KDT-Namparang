@@ -141,36 +141,53 @@ GitHub 계정 문제나 정책 변경에 대한 탈출구다. 클라우드 동�
 | `get_trail_summary()` | 전체 개요(총거리·총상승) + 출처·주의사항 |
 
 로컬 stdio 서버라 **claude.ai(웹)에서는 못 쓴다.** Claude Code(CLI) 또는 Claude
-Desktop(앱)에서만 동작한다. 다른 컴퓨터에서 쓰려면:
+Desktop(앱)에서만 동작한다.
 
-### 0. 공통 — 서버 파일 받기
+**필요한 건 `server.mjs` 파일 하나뿐이다 — 이 리포를 clone할 필요가 없다.**
+로컬 데이터를 읽지 않고 배포된 사이트를 fetch 하도록 만들었기 때문에, 이 파일이
+다른 리포 파일을 하나도 참조하지 않는다. 아래 3단계면 끝난다.
 
-리포 전체를 clone 할 필요가 없다. `mcp/server.mjs` 파일과 최소 `package.json`만
-있으면 된다. 가장 쉬운 방법은 그냥 clone하는 것이지만, 파일만 따로 받아도 된다.
+### 1. 파일 하나 받기
 
-```bash
-git clone https://github.com/yeonkyupark/KDT-Namparang.git
-cd KDT-Namparang
-npm install @modelcontextprotocol/server zod   # mcp/ 가 쓰는 의존성 2개만 있으면 충분
-```
-
-### Claude Code — 이 리포에서만 쓰기 (가장 간단)
-
-리포에 이미 `.mcp.json` 이 있다. 이 폴더에서 `claude` 를 실행하면 자동으로 인식되는데,
-**다른 사람의 리포라 처음엔 승인 프롬프트가 뜬다** — 그 프로젝트의 MCP 서버를 신뢰할지
-묻는 것이다. 승인하면 그 다음부터는 묻지 않는다.
-
-### Claude Code — 어느 폴더에서든 쓰기
+새 폴더를 만들고 그 안에 파일 하나만 내려받는다:
 
 ```bash
-claude mcp add namparang-gil --scope user -- node /absolute/path/to/KDT-Namparang/mcp/server.mjs
+mkdir namparang-mcp && cd namparang-mcp
+curl -O https://raw.githubusercontent.com/yeonkyupark/KDT-Namparang/main/mcp/server.mjs
 ```
 
-절대경로로 넣어야 한다(상대경로는 실행 디렉터리가 바뀌면 깨진다). `claude mcp list` 로 등록됐는지 확인.
+curl이 없으면(Windows PowerShell):
 
-### Claude Desktop
+```powershell
+mkdir namparang-mcp; cd namparang-mcp
+Invoke-WebRequest https://raw.githubusercontent.com/yeonkyupark/KDT-Namparang/main/mcp/server.mjs -OutFile server.mjs
+```
 
-`claude_desktop_config.json` 에 추가한다.
+또는 그 주소를 브라우저로 열어 "다른 이름으로 저장"해도 된다.
+
+### 2. 의존성 설치
+
+같은 폴더에서 한 줄:
+
+```bash
+npm install @modelcontextprotocol/server zod
+```
+
+이 폴더에 `package.json`이 없어도 npm이 그 자리에서 자동으로 만든다 — 미리 준비할 것 없다.
+
+### 3. Claude에 등록
+
+**Claude Code** — 이 폴더 경로를 그대로 쓴다:
+
+```bash
+claude mcp add namparang-gil --scope user -- node "$(pwd)/server.mjs"
+```
+
+(Windows PowerShell이면 `"$(pwd)/server.mjs"` 대신 `"$PWD\server.mjs"`.) 절대경로로
+들어가므로 나중에 다른 폴더에서 Claude Code를 실행해도 계속 인식된다.
+`claude mcp list` 로 등록 확인.
+
+**Claude Desktop** — 설정 파일에 절대경로로 추가한다.
 
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -180,7 +197,7 @@ claude mcp add namparang-gil --scope user -- node /absolute/path/to/KDT-Namparan
   "mcpServers": {
     "namparang-gil": {
       "command": "node",
-      "args": ["/absolute/path/to/KDT-Namparang/mcp/server.mjs"]
+      "args": ["/절대/경로/namparang-mcp/server.mjs"]
     }
   }
 }
@@ -188,14 +205,21 @@ claude mcp add namparang-gil --scope user -- node /absolute/path/to/KDT-Namparan
 
 추가한 뒤 **Claude Desktop을 완전히 종료하고 다시 실행**해야 반영된다(핫 리로드 없음).
 
+---
+
+이 리포 자체를 이미 clone해서 작업하는 중이라면(즉 이 README를 보고 있는 그 폴더),
+위 1단계는 건너뛰고 `mcp/server.mjs` 경로를 그대로 쓰면 된다 — `.mcp.json` 이 이미
+리포에 있어서 이 폴더에서 `claude` 를 실행하면 자동 인식된다(다른 사람의 리포를
+처음 여는 것이므로 신뢰 승인 프롬프트가 한 번 뜬다).
+
 ### 직접 확인
 
-`node mcp/server.mjs` 를 터미널에 그냥 실행하면 응답이 안 보인다 — 표준입출력으로
+`node server.mjs` 를 터미널에 그냥 실행하면 응답이 안 보인다 — 표준입출력으로
 JSON-RPC를 주고받는 프로토콜이라 호스트(Claude)가 자식 프로세스로 띄워야 정상 동작한다.
 직접 도구를 눌러보려면:
 
 ```bash
-npx @modelcontextprotocol/inspector node mcp/server.mjs
+npx @modelcontextprotocol/inspector node server.mjs
 ```
 
 ## 보안 주의
