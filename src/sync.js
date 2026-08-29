@@ -65,9 +65,12 @@ export function photoUrl(settings, note, kind) {
   const p = note?.photo
   if (!p) return null
   const path = p[kind]
-  if (path && settings?.owner && settings?.photoRepo) {
+  const owner = settings?.owner || 'yeonkyupark'
+  const photoRepo = settings?.photoRepo || 'photo-repo'
+  const branch = settings?.branch || 'main'
+  if (path && owner && photoRepo) {
     const enc = path.split('/').map(encodeURIComponent).join('/')
-    return `https://raw.githubusercontent.com/${settings.owner}/${settings.photoRepo}/${settings.branch || 'main'}/${enc}`
+    return `https://raw.githubusercontent.com/${owner}/${photoRepo}/${branch}/${enc}`
   }
   return p[`${kind}Url`] ?? null
 }
