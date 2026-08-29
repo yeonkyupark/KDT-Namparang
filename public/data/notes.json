@@ -1,6 +1,6 @@
 {
  "version": 1,
- "updatedAt": "2026-08-28T08:09:19.757Z",
+ "updatedAt": "2026-08-29T12:46:53.863Z",
  "notes": [
   {
    "id": "10d95a46-9cb7-4aca-9436-e7bcc9a81b66",
@@ -80,6 +80,22 @@
     "fullUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/namparang/2026/b045cba3-30ae-47b7-9c21-f5660f55e9e1.jpg",
     "thumbUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/namparang/2026/b045cba3-30ae-47b7-9c21-f5660f55e9e1_t.jpg"
    }
+  },
+  {
+   "id": "c0e84a55-6bfd-4e12-b5dc-c5def628c9e8",
+   "lat": 36.1319582,
+   "lng": 128.388185,
+   "courseId": "",
+   "takenAt": "2026-08-29T09:45:03.000Z",
+   "createdAt": "2026-08-29T12:19:48.794Z",
+   "updatedAt": "2026-08-29T12:27:57.807Z",
+   "title": "우리집",
+   "memo": "",
+   "rating": 3,
+   "locationSource": "gps",
+   "address": "",
+   "deleted": true,
+   "photo": null
   }
  ]
 }
