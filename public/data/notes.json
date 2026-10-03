@@ -1,6 +1,6 @@
 {
  "version": 1,
- "updatedAt": "2026-08-29T12:46:53.863Z",
+ "updatedAt": "2026-10-03T00:54:41.147Z",
  "notes": [
   {
    "id": "10d95a46-9cb7-4aca-9436-e7bcc9a81b66",
@@ -96,6 +96,27 @@
    "address": "",
    "deleted": true,
    "photo": null
+  },
+  {
+   "id": "be82fab3-27e2-4dc8-bcbd-6f0db9699245",
+   "lat": 34.8625303,
+   "lng": 128.4214042,
+   "courseId": "30",
+   "takenAt": "2026-10-03T00:49:25.000Z",
+   "createdAt": "2026-10-03T00:53:28.797Z",
+   "updatedAt": "2026-10-03T00:53:28.797Z",
+   "title": "",
+   "memo": "",
+   "rating": 0,
+   "locationSource": "gps",
+   "address": "",
+   "deleted": false,
+   "photo": {
+    "full": "namparang/2026/be82fab3-27e2-4dc8-bcbd-6f0db9699245.jpg",
+    "thumb": "namparang/2026/be82fab3-27e2-4dc8-bcbd-6f0db9699245_t.jpg",
+    "fullUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/namparang/2026/be82fab3-27e2-4dc8-bcbd-6f0db9699245.jpg",
+    "thumbUrl": "https://raw.githubusercontent.com/yeonkyupark/photo-repo/main/namparang/2026/be82fab3-27e2-4dc8-bcbd-6f0db9699245_t.jpg"
+   }
   }
  ]
 }
